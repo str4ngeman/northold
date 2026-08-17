@@ -3,6 +3,8 @@ import { FadeIn } from "@/components/motion";
 import { PLANS } from "@/lib/dummy";
 import { loadCatalog } from "@/lib/load-catalog";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlansPage() {
   let plans = PLANS;
   try {

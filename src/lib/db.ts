@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 import { seedDatabase } from "@/lib/seed";
 
-const MONGODB_URI: string = process.env.MONGODB_URI ?? "";
-
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI is not set");
+function mongoUri() {
+  const uri = process.env.MONGODB_URI ?? "";
+  if (!uri) throw new Error("MONGODB_URI is not set");
+  return uri;
 }
 
 type Cache = {
@@ -32,7 +32,7 @@ export async function connectDb() {
     return cache.conn;
   }
   if (!cache.promise) {
-    cache.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false });
+    cache.promise = mongoose.connect(mongoUri(), { bufferCommands: false });
   }
   cache.conn = await cache.promise;
   if (!cache.seeded) {

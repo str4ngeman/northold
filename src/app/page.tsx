@@ -2,6 +2,8 @@ import { HomeView } from "@/components/home/home-view";
 import { PLANS } from "@/lib/dummy";
 import { loadCatalog } from "@/lib/load-catalog";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   let plans = PLANS;
   try {
