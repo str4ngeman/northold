@@ -1,43 +1,33 @@
-import type { Metadata } from "next";
-import { Cinzel, Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist } from "next/font/google";
 
+import { KineticShell } from "@/components/kinetic/kinetic-shell";
 import { Providers } from "@/components/providers";
-import { SiteHeader } from "@/components/site-header";
 
 import "./globals.css";
+import "./kinetic.css";
 
-const geistSans = Geist({
+const geist = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const cinzel = Cinzel({
-  variable: "--font-cinzel",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-});
-
 export const metadata: Metadata = {
   title: "Leagueto — Vault Cards",
-  description: "Stake ERC-20s as collectible position NFTs. Earn USDT while your principal stays in the same token.",
+  description:
+    "An ERC-20 lock mints a numbered NFT. USDT accrues on the face. Principal returns in the same tokens when the seal completes.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#07070c",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} dark h-full antialiased`}
-    >
-      <body className="vault-grid min-h-full flex flex-col">
+    <html lang="en" suppressHydrationWarning className={`${geist.variable} h-full antialiased`}>
+      <body className="min-h-full">
         <Providers>
-          <SiteHeader />
-          <div className="flex flex-1 flex-col">{children}</div>
+          <KineticShell>{children}</KineticShell>
         </Providers>
       </body>
     </html>

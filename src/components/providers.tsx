@@ -1,36 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
+import { Suspense, useState, type ReactNode } from "react";
+import { WagmiProvider } from "wagmi";
 
+import { ReferralCapture } from "@/components/referral-capture";
 import { Toaster } from "@/components/ui/sonner";
-import { NEXT_TOKEN_ID, materializeSeeds } from "@/lib/dummy";
-import { useVaultStore } from "@/store/vault-store";
+import { wagmiConfig } from "@/lib/wagmi";
 
-function seedVaultIfEmpty() {
-  const { positions } = useVaultStore.getState();
-  if (positions.length > 0) return;
-  useVaultStore.setState({
-    positions: materializeSeeds(Date.now()),
-    nextTokenId: NEXT_TOKEN_ID,
-  });
-}
+export function Providers({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
 
-function VaultBootstrap() {
-  useEffect(() => {
-    const persist = useVaultStore.persist;
-    if (persist.hasHydrated()) seedVaultIfEmpty();
-    return persist.onFinishHydration(seedVaultIfEmpty);
-  }, []);
-  return null;
-}
-
-export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
-      <VaultBootstrap />
-      {children}
-      <Toaster position="top-center" />
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <Suspense fallback={null}>
+            <ReferralCapture />
+          </Suspense>
+          {children}
+          <Toaster position="top-center" />
+        </QueryClientProvider>
+      </WagmiProvider>
     </ThemeProvider>
   );
 }

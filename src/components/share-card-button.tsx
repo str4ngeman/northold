@@ -1,16 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { toPng } from "html-to-image";
-import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { LetterButton } from "@/components/kinetic/letter-button";
 import { formatTokenId } from "@/lib/format";
 
 type ShareCardButtonProps = {
   tokenId: number;
-  targetRef: React.RefObject<HTMLElement | null>;
+  targetRef: RefObject<HTMLElement | null>;
 };
 
 export function ShareCardButton({ tokenId, targetRef }: ShareCardButtonProps) {
@@ -25,7 +24,7 @@ export function ShareCardButton({ tokenId, targetRef }: ShareCardButtonProps) {
       const dataUrl = await toPng(targetRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-        backgroundColor: "#07070c",
+        backgroundColor: "#050917",
       });
       const link = document.createElement("a");
       link.download = `leagueto-vault-${formatTokenId(tokenId).slice(1)}.png`;
@@ -40,10 +39,5 @@ export function ShareCardButton({ tokenId, targetRef }: ShareCardButtonProps) {
     }
   }
 
-  return (
-    <Button variant="outline" onClick={download} disabled={busy}>
-      <Download data-icon="inline-start" />
-      Save card PNG
-    </Button>
-  );
+  return <LetterButton label={busy ? "Saving" : "Save card PNG"} variant="ghost" onClick={download} disabled={busy} />;
 }

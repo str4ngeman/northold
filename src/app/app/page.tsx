@@ -2,77 +2,79 @@
 
 import Link from "next/link";
 
-import { buttonVariants } from "@/components/ui/button";
+import { LetterButton } from "@/components/kinetic/letter-button";
+import { Reveal } from "@/components/kinetic/reveal";
 import { VaultCard } from "@/components/vault-card";
-import { useHasHydrated, useNow } from "@/hooks/use-now";
-import { useOwnedViews } from "@/hooks/use-owned-views";
-import { cn } from "@/lib/utils";
-import { useVaultStore } from "@/store/vault-store";
+import { WalletButton } from "@/components/wallet-button";
+import { useNow } from "@/hooks/use-now";
+import { usePositions } from "@/hooks/use-positions";
+import { useSession } from "@/hooks/use-session";
 
 export default function VaultPage() {
   const now = useNow();
-  const hydrated = useHasHydrated();
-  const address = useVaultStore((s) => s.address);
-  const connect = useVaultStore((s) => s.connect);
-  const views = useOwnedViews(now);
+  const { user, loading } = useSession();
+  const { views } = usePositions(now);
 
-  if (!hydrated) {
-    return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-12">
-        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
-      </main>
-    );
-  }
+  if (loading) return <main className="page" />;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-12">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="font-display text-xs tracking-[0.35em] text-primary uppercase">
-            My Vault
-          </p>
-          <h1 className="mt-2 font-display text-4xl">Your book of cards</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Each card is a position NFT. Claim USDT, wait out the lock, or break the seal.
-          </p>
+    <main className="page">
+      <div className="container">
+        <div className="split">
+          <div>
+            <p className="label">Vault</p>
+            <Reveal as="h1" className="h2 hero-copy">
+              A book of plates
+            </Reveal>
+            <p className="body hero-body">
+              Each card is a position NFT. Claim USDT, wait the lock, or break the seal.
+            </p>
+          </div>
+          <div>
+            <LetterButton href="/app/stake" label="Mint a card" />
+          </div>
         </div>
-        <Link href="/app/stake" className={cn(buttonVariants())}>
-          Mint another
-        </Link>
-      </div>
 
-      {!address ? (
-        <div className="mt-16 rounded-2xl border border-dashed border-white/15 p-10 text-center">
-          <p className="font-display text-xl">Connect to open your vault</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Dummy wallet — no chain required. Seed cards appear after you connect.
-          </p>
-          <button
-            type="button"
-            onClick={connect}
-            className={cn(buttonVariants(), "mt-6")}
+        {!user ? (
+          <div className="glass" style={{ marginTop: "var(--s-7)", padding: "3rem var(--gutter)" }}>
+            <p className="h3">Sign in to open the vault</p>
+            <p className="body" style={{ marginTop: "0.8rem" }}>
+              Connect a wallet or log in with email.
+            </p>
+            <div style={{ marginTop: "var(--s-4)", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <WalletButton />
+              <LetterButton href="/login" label="Email login" variant="ghost" />
+            </div>
+          </div>
+        ) : views.length === 0 ? (
+          <div className="glass" style={{ marginTop: "var(--s-7)", padding: "3rem var(--gutter)" }}>
+            <p className="h3">No cards yet</p>
+            <div style={{ marginTop: "var(--s-4)" }}>
+              <LetterButton href="/app/stake" label="Mint a card" />
+            </div>
+          </div>
+        ) : (
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: "var(--s-7) 0 0",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+              gap: "2.5rem",
+              justifyItems: "center",
+            }}
           >
-            Connect wallet
-          </button>
-        </div>
-      ) : views.length === 0 ? (
-        <div className="mt-16 rounded-2xl border border-dashed border-white/15 p-10 text-center">
-          <p className="font-display text-xl">No cards yet</p>
-          <Link href="/app/stake" className={cn(buttonVariants(), "mt-6 inline-flex")}>
-            Mint your first card
-          </Link>
-        </div>
-      ) : (
-        <ul className="mt-10 grid justify-items-center gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {views.map((view) => (
-            <li key={view.tokenId}>
-              <Link href={`/app/position/${view.tokenId}`} className="block transition-transform hover:-translate-y-1">
-                <VaultCard view={view} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+            {views.map((view) => (
+              <li key={view.tokenId}>
+                <Link href={`/app/position/${view.tokenId}`}>
+                  <VaultCard view={view} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </main>
   );
 }

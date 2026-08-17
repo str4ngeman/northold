@@ -1,55 +1,65 @@
-import Link from "next/link";
-
-import { buttonVariants } from "@/components/ui/button";
+import { LetterButton } from "@/components/kinetic/letter-button";
+import { Reveal } from "@/components/kinetic/reveal";
+import { StrokeFrame } from "@/components/kinetic/stroke-frame";
 import { PLANS } from "@/lib/dummy";
 import { formatApy, formatFee, formatLock, formatUsd } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { loadCatalog } from "@/lib/load-catalog";
 
-export default function PlansPage() {
+export default async function PlansPage() {
+  let plans = PLANS;
+  try {
+    const catalog = await loadCatalog();
+    if (catalog.plans.length) plans = catalog.plans;
+  } catch {
+    /* ignore */
+  }
+
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-12">
-      <p className="font-display text-xs tracking-[0.35em] text-primary uppercase">Plans</p>
-      <h1 className="mt-2 font-display text-4xl">Lock, coupon, and the emergency seal</h1>
-      <p className="mt-3 max-w-2xl text-muted-foreground">
-        Every plan has a minimum and maximum in USD, a lock duration, a USDT APY, and an
-        emergency fee. Rates below are placeholders for the frontend.
-      </p>
+    <main className="page">
+      <div className="container" style={{ position: "relative" }}>
+        <p className="label">Plans</p>
+        <Reveal as="h1" className="h2 hero-copy">
+          Lock, coupon, emergency seal
+        </Reveal>
+        <Reveal as="p" className="body hero-body" delay={60}>
+          Each plan sets a USD range, a lock duration, a USDT coupon, and a fee if the seal is broken early.
+        </Reveal>
+        <StrokeFrame w={1100} h={220} cap="left" className="object-frame" />
 
-      <div className="mt-10 grid gap-5 lg:grid-cols-3">
-        {PLANS.map((plan) => (
-          <article
-            key={plan.id}
-            className="flex flex-col rounded-2xl border border-white/8 bg-card/70 p-6"
-          >
-            <h2 className="font-display text-3xl">{plan.name}</h2>
-            <p className="text-sm text-muted-foreground">{plan.tagline}</p>
-            <p className="mt-6 font-display text-4xl text-primary">{formatApy(plan.apyBps)}</p>
-            <dl className="mt-6 space-y-3 text-sm">
-              <Row label="Lock duration" value={formatLock(plan.lockSeconds)} />
-              <Row label="Minimum" value={formatUsd(plan.minUsd, 0)} />
-              <Row label="Maximum" value={formatUsd(plan.maxUsd, 0)} />
-              <Row label="Emergency fee" value={`${formatFee(plan.emergencyFeeBps)} of principal`} />
-              <Row label="Yield asset" value="USDT, claim anytime" />
-              <Row label="Principal back" value="Same tokens you deposited" />
-            </dl>
-            <Link
-              href="/app/stake"
-              className={cn(buttonVariants(), "mt-8 w-full")}
-            >
-              Mint a {plan.name} card
-            </Link>
-          </article>
-        ))}
+        <div className="plans-grid" style={{ marginTop: "var(--s-7)" }}>
+          {plans.map((plan) => (
+            <article key={plan.id} className="glass" style={{ padding: "2rem 1.4rem" }}>
+              <p className="label">{formatLock(plan.lockSeconds)}</p>
+              <h2 className="h3" style={{ marginTop: "0.8rem" }}>
+                {plan.name}
+              </h2>
+              <p className="body" style={{ marginTop: "0.6rem", fontSize: "var(--fs-small)" }}>
+                {plan.tagline}
+              </p>
+              <p style={{ color: "var(--light)", marginTop: "1.4rem", fontSize: "var(--fs-h2)" }}>
+                {formatApy(plan.apyBps)}
+              </p>
+              <dl style={{ marginTop: "1.4rem" }}>
+                <div className="stat">
+                  <dt>Minimum</dt>
+                  <dd>{formatUsd(plan.minUsd, 0)}</dd>
+                </div>
+                <div className="stat">
+                  <dt>Maximum</dt>
+                  <dd>{formatUsd(plan.maxUsd, 0)}</dd>
+                </div>
+                <div className="stat">
+                  <dt>Emergency fee</dt>
+                  <dd>{formatFee(plan.emergencyFeeBps)} of principal</dd>
+                </div>
+              </dl>
+              <div style={{ marginTop: "1.6rem" }}>
+                <LetterButton href="/app/stake" label={`Mint ${plan.name}`} />
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </main>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-white/6 pb-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right">{value}</dd>
-    </div>
   );
 }

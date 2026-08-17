@@ -1,16 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
+import { useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
+import { LetterButton } from "@/components/kinetic/letter-button";
 import { ShareCardButton } from "@/components/share-card-button";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { VaultCard } from "@/components/vault-card";
-import { useHasHydrated, useNow } from "@/hooks/use-now";
-import { usePositionView } from "@/hooks/use-owned-views";
+import { useNow } from "@/hooks/use-now";
+import { usePositions } from "@/hooks/use-positions";
 import {
   formatApy,
   formatFee,
@@ -19,36 +18,25 @@ import {
   formatTokenId,
   formatUsd,
 } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { useVaultStore } from "@/store/vault-store";
 
 export default function PositionPage() {
   const params = useParams<{ id: string }>();
   const tokenId = Number(params.id);
   const now = useNow();
-  const hydrated = useHasHydrated();
-  const view = usePositionView(tokenId, now);
-  const claim = useVaultStore((s) => s.claim);
-  const unlock = useVaultStore((s) => s.unlock);
-  const emergencyUnlock = useVaultStore((s) => s.emergencyUnlock);
+  const { views, refresh } = usePositions(now);
+  const view = useMemo(() => views.find((item) => item.tokenId === tokenId) ?? null, [views, tokenId]);
   const cardRef = useRef<HTMLDivElement>(null);
   const [emergencyOpen, setEmergencyOpen] = useState(false);
 
-  if (!hydrated) {
-    return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-12">
-        <div className="h-80 animate-pulse rounded-2xl bg-white/5" />
-      </main>
-    );
-  }
-
   if (!Number.isFinite(tokenId) || !view) {
     return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-16 text-center">
-        <h1 className="font-display text-3xl">Card not found</h1>
-        <Link href="/app" className={cn(buttonVariants(), "mt-6 inline-flex")}>
-          Back to vault
-        </Link>
+      <main className="page">
+        <div className="container">
+          <h1 className="h2">Card not found</h1>
+          <div style={{ marginTop: "var(--s-5)" }}>
+            <LetterButton href="/app" label="Back to vault" />
+          </div>
+        </div>
       </main>
     );
   }
@@ -59,112 +47,85 @@ export default function PositionPage() {
   const canUnlock = position.isMatured && position.status === "locked";
   const canEmergency = active && !position.isMatured;
 
-  function onClaim() {
-    try {
-      const amount = claim(position.tokenId);
-      toast.success(`Claimed ${formatUsd(amount)} USDT`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Claim failed");
-    }
-  }
-
-  function onUnlock() {
-    try {
-      const result = unlock(position.tokenId);
-      toast.success(
-        `Returned ${formatTokenAmount(result.principal, position.token.symbol)} and ${formatUsd(result.usdt)} USDT`,
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unlock failed");
-    }
-  }
-
-  function onEmergency() {
-    const result = emergencyUnlock(position.tokenId);
-    toast.success(
-      `Returned ${formatTokenAmount(result.returned, position.token.symbol)}. Fee ${formatTokenAmount(result.fee, position.token.symbol)}.`,
-    );
+  async function act(path: string, ok: (data: Record<string, unknown>) => string) {
+    const res = await fetch(`/api/positions/${position.tokenId}/${path}`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Request failed");
+    toast.success(ok(data));
+    await refresh();
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 lg:grid-cols-[320px_1fr]">
-      <div className="flex flex-col items-center">
-        <div ref={cardRef} className="bg-[#07070c] p-4">
-          <VaultCard view={view} size="lg" />
-        </div>
-        <div className="mt-4">
-          <ShareCardButton tokenId={view.tokenId} targetRef={cardRef} />
-        </div>
-      </div>
-
-      <div>
-        <p className="font-display text-xs tracking-[0.35em] text-primary uppercase">
-          Position {formatTokenId(view.tokenId)}
-        </p>
-        <h1 className="mt-2 font-display text-4xl">
-          {view.plan.name} · {view.token.symbol}
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          This NFT is the stake. Transfer (coming later) sells the whole locked position.
-        </p>
-
-        <dl className="mt-8 grid gap-3 sm:grid-cols-2">
-          <Stat label="Principal" value={formatTokenAmount(view.principalAmount, view.token.symbol)} />
-          <Stat label="Value" value={formatUsd(view.principalUsd)} />
-          <Stat label="USDT accrued" value={formatUsd(view.accruedUsdt)} />
-          <Stat label="Claimable now" value={formatUsd(view.claimableUsdt)} />
-          <Stat label="Already claimed" value={formatUsd(view.claimedUsdt)} />
-          <Stat label="Coupon" value={formatApy(view.plan.apyBps)} />
-          <Stat label="Lock" value={formatLock(view.plan.lockSeconds)} />
-          <Stat label="Emergency fee" value={formatFee(view.plan.emergencyFeeBps)} />
-        </dl>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button onClick={onClaim} disabled={!canClaim}>
-            Claim USDT
-          </Button>
-          <Button variant="secondary" onClick={onUnlock} disabled={!canUnlock}>
-            Unlock principal
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => setEmergencyOpen(true)}
-            disabled={!canEmergency}
-          >
-            Emergency unlock
-          </Button>
-          <Button variant="outline" disabled title="Secondary market comes with the contract">
-            Transfer / Sell
-          </Button>
+    <main className="page">
+      <div className="container split">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div ref={cardRef} style={{ background: "#07070c", padding: "1rem" }}>
+            <VaultCard view={view} size="lg" />
+          </div>
+          <div style={{ marginTop: "1rem" }}>
+            <ShareCardButton tokenId={view.tokenId} targetRef={cardRef} />
+          </div>
         </div>
 
-        {view.status === "emergencyExited" && (
-          <p className="mt-4 text-sm text-destructive">
-            Seal broken. Principal returned minus fee. Unclaimed yield was forfeited.
-          </p>
-        )}
-        {view.status === "unlocked" && (
-          <p className="mt-4 text-sm text-emerald-400">
-            Mature unlock complete. Same tokens returned, remaining USDT paid.
-          </p>
-        )}
+        <div>
+          <p className="label">Position {formatTokenId(view.tokenId)}</p>
+          <h1 className="h2 hero-copy">
+            {view.plan.name} · {view.token.symbol}
+          </h1>
+          <p className="body hero-body">This NFT is the stake. Transfer later sells the whole locked position.</p>
 
-        <EmergencyDialog
-          view={view}
-          open={emergencyOpen}
-          onOpenChange={setEmergencyOpen}
-          onConfirm={onEmergency}
-        />
+          <dl style={{ marginTop: "var(--s-5)" }}>
+            <div className="stat"><dt>Principal</dt><dd>{formatTokenAmount(view.principalAmount, view.token.symbol)}</dd></div>
+            <div className="stat"><dt>Value</dt><dd>{formatUsd(view.principalUsd)}</dd></div>
+            <div className="stat"><dt>USDT accrued</dt><dd>{formatUsd(view.accruedUsdt)}</dd></div>
+            <div className="stat"><dt>Claimable</dt><dd>{formatUsd(view.claimableUsdt)}</dd></div>
+            <div className="stat"><dt>Claimed</dt><dd>{formatUsd(view.claimedUsdt)}</dd></div>
+            <div className="stat"><dt>Coupon</dt><dd>{formatApy(view.plan.apyBps)}</dd></div>
+            <div className="stat"><dt>Lock</dt><dd>{formatLock(view.plan.lockSeconds)}</dd></div>
+            <div className="stat"><dt>Break fee</dt><dd>{formatFee(view.plan.emergencyFeeBps)}</dd></div>
+          </dl>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "var(--s-5)" }}>
+            <LetterButton
+              label="Claim USDT"
+              disabled={!canClaim}
+              onClick={() => void act("claim", (d) => `Claimed ${formatUsd(Number((d as { claimed?: number }).claimed))} USDT`)}
+            />
+            <LetterButton
+              label="Release principal"
+              variant="ghost"
+              disabled={!canUnlock}
+              onClick={() =>
+                void act(
+                  "unlock",
+                  (d) =>
+                    `Returned ${formatTokenAmount(Number((d as { principal: number }).principal), position.token.symbol)}`,
+                )
+              }
+            />
+            <LetterButton
+              label="Break seal"
+              variant="ghost"
+              disabled={!canEmergency}
+              onClick={() => setEmergencyOpen(true)}
+            />
+            <LetterButton label="Transfer / Sell" variant="ghost" disabled />
+          </div>
+
+          <EmergencyDialog
+            view={view}
+            open={emergencyOpen}
+            onOpenChange={setEmergencyOpen}
+            onConfirm={() =>
+              act(
+                "emergency",
+                (d) =>
+                  `Returned ${formatTokenAmount(Number((d as { returned: number }).returned), position.token.symbol)}`,
+              )
+            }
+          />
+        </div>
       </div>
     </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/8 bg-card/60 px-4 py-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-medium">{value}</dd>
-    </div>
   );
 }
