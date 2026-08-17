@@ -1,0 +1,25 @@
+services:
+  northold:
+    image: ghcr.io/str4ngeman/northold:latest
+    container_name: northold
+    restart: unless-stopped
+    networks:
+      - web
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      MONGODB_URI: ${MONGODB_URI}
+      AUTH_SECRET: ${AUTH_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.other-app.rule=Host(`northold.app`)
+      - traefik.http.routers.other-app.entrypoints=websecure
+      - traefik.http.routers.other-app.tls.certresolver=letsencrypt
+      - traefik.http.services.other-app.loadbalancer.server.port=3000
+
+networks:
+  web:
+    external: true
