@@ -1,69 +1,109 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Clock, ShieldAlert, Sparkles } from "lucide-react";
 
-export default function Home() {
+import { buttonVariants } from "@/components/ui/button";
+import { HeroCards } from "@/components/hero-cards";
+import { PLANS } from "@/lib/dummy";
+import { formatApy, formatFee, formatLock, formatUsd } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="mx-auto w-full max-w-6xl px-4 py-16">
+      <section className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <p className="font-display text-xs tracking-[0.35em] text-primary uppercase">
+            Position NFTs
           </p>
+          <h1 className="mt-3 font-display text-4xl leading-tight sm:text-5xl">
+            Your stake is a collectible.
+            <span className="block text-primary">The card is the vault.</span>
+          </h1>
+          <p className="mt-5 max-w-xl text-muted-foreground">
+            Deposit an ERC-20, pick a lock plan, and mint a Vault Card. That NFT{" "}
+            <em>is</em> the investment — live USDT yield on the face, principal back in the
+            same tokens when the seal completes.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/app/stake" className={cn(buttonVariants({ size: "lg" }))}>
+              Mint your first card
+            </Link>
+            <Link href="/plans" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+              View plans
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <HeroCards />
+      </section>
+
+      <section className="mt-24 grid gap-4 sm:grid-cols-3">
+        {[
+          {
+            icon: Sparkles,
+            title: "Mint, don’t just deposit",
+            body: "Each stake becomes a numbered card with rarity from size and lock. Transfer later means selling the whole position.",
+          },
+          {
+            icon: Clock,
+            title: "USDT coupon, live",
+            body: "Yield accrues in USDT and can be claimed anytime. Your principal stays in the token you deposited.",
+          },
+          {
+            icon: ShieldAlert,
+            title: "Emergency exit",
+            body: "Break the seal early and pay a fee on principal. Unclaimed USDT is forfeited. Claimed yield stays yours.",
+          },
+        ].map((item) => (
+          <div key={item.title} className="rounded-2xl border border-white/8 bg-card/60 p-5">
+            <item.icon className="size-5 text-primary" />
+            <h2 className="mt-3 font-medium">{item.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-24">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="font-display text-2xl">Plans</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Dummy APYs — swap these numbers when the treasury model is set.
+            </p>
+          </div>
+          <Link href="/plans" className="text-sm text-primary hover:underline">
+            All details
+          </Link>
         </div>
-      </main>
-    </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {PLANS.map((plan) => (
+            <Link
+              key={plan.id}
+              href="/app/stake"
+              className="rounded-2xl border border-white/8 bg-card/60 p-5 transition-colors hover:border-primary/40"
+            >
+              <p className="font-display text-xl">{plan.name}</p>
+              <p className="text-sm text-muted-foreground">{plan.tagline}</p>
+              <p className="mt-4 text-2xl text-primary">{formatApy(plan.apyBps)}</p>
+              <dl className="mt-4 space-y-1 text-sm text-muted-foreground">
+                <div className="flex justify-between">
+                  <dt>Lock</dt>
+                  <dd className="text-foreground">{formatLock(plan.lockSeconds)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Range</dt>
+                  <dd className="text-foreground">
+                    {formatUsd(plan.minUsd, 0)}–{formatUsd(plan.maxUsd, 0)}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt>Emergency fee</dt>
+                  <dd className="text-foreground">{formatFee(plan.emergencyFeeBps)}</dd>
+                </div>
+              </dl>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
