@@ -347,7 +347,7 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
 
   const assets: MoneyRow[] = tokens.map((t, i) => ({
     label: t.symbol,
-    usd: usd8(tvl[1][i] ?? 0n),
+    usd: usd8(tvl[1][i] ?? BigInt(0)),
     symbol: t.symbol,
   }));
 
@@ -397,18 +397,18 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
     const logs = await pc.getContractEvents({
       address: vault,
       abi: vaultAbi,
-      fromBlock: 0n,
+      fromBlock: BigInt(0),
       toBlock: "latest",
     });
     for (const log of logs) {
       const args = (log.args ?? {}) as Record<string, unknown>;
       const tokenId = args.tokenId != null ? Number(args.tokenId as bigint) : undefined;
       if (log.eventName === "Claimed") {
-        cash.couponPaidUsdt += usdt((args.paid as bigint) ?? 0n);
-        cash.referralPaidUsdt += usdt((args.referralPaid as bigint) ?? 0n);
-        activity.push({ event: "Claim", tokenId, detail: `${usdt((args.paid as bigint) ?? 0n).toFixed(2)} USDT paid` });
+        cash.couponPaidUsdt += usdt((args.paid as bigint) ?? BigInt(0));
+        cash.referralPaidUsdt += usdt((args.referralPaid as bigint) ?? BigInt(0));
+        activity.push({ event: "Claim", tokenId, detail: `${usdt((args.paid as bigint) ?? BigInt(0)).toFixed(2)} USDT paid` });
       } else if (log.eventName === "Unlocked") {
-        cash.couponPaidUsdt += usdt((args.rewardPaid as bigint) ?? 0n);
+        cash.couponPaidUsdt += usdt((args.rewardPaid as bigint) ?? BigInt(0));
         activity.push({ event: "Unlock", tokenId, detail: "Principal returned" });
       } else if (log.eventName === "EmergencyExited") {
         activity.push({ event: "Early exit", tokenId, detail: "Fee taken, unclaimed coupon forfeited" });
@@ -416,11 +416,11 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
         activity.push({
           event: "Mint",
           tokenId,
-          detail: `${usd8((args.principalUsd8 as bigint) ?? 0n).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} locked`,
+          detail: `${usd8((args.principalUsd8 as bigint) ?? BigInt(0)).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} locked`,
         });
       } else if (log.eventName === "RewardsFunded") {
-        cash.rewardsFundedUsdt += usdt((args.amount as bigint) ?? 0n);
-        activity.push({ event: "Treasury in", detail: `+${usdt((args.amount as bigint) ?? 0n).toFixed(0)} USDT` });
+        cash.rewardsFundedUsdt += usdt((args.amount as bigint) ?? BigInt(0));
+        activity.push({ event: "Treasury in", detail: `+${usdt((args.amount as bigint) ?? BigInt(0)).toFixed(0)} USDT` });
       }
     }
   } catch {

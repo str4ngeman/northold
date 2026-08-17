@@ -111,7 +111,7 @@ export async function getCatalog() {
   })) as bigint;
 
   const plans = [];
-  for (let i = 1n; i <= count; i++) {
+  for (let i = BigInt(1); i <= count; i++) {
     const plan = (await pc.readContract({
       address: d.contracts.vault,
       abi: vaultAbi,
@@ -202,7 +202,7 @@ export async function getSnapshot() {
         symbol: meta.symbol,
         address: token,
         amount: formatUnits(amount, meta.decimals),
-        usd: usd8(tvl[1][i] ?? 0n),
+        usd: usd8(tvl[1][i] ?? BigInt(0)),
       };
     }),
   );
@@ -290,7 +290,7 @@ export async function getWallet(address: Address) {
         symbol,
         address: tokenAddr,
         balance: formatUnits(balance, decimals),
-        allowance: allowance === 0n ? "0" : allowance === 2n ** 256n - 1n ? "max" : formatUnits(allowance, decimals),
+        allowance: allowance === BigInt(0) ? "0" : allowance === (BigInt(2) ** BigInt(256)) - BigInt(1) ? "max" : formatUnits(allowance, decimals),
       };
     }),
   );
@@ -356,7 +356,7 @@ export async function getRecentEvents(limit = 40) {
   const pc = client(d.rpc || state.rpc, state.network.id);
   const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
   const latest = await pc.getBlockNumber();
-  const fromBlock = latest > 2000n ? latest - 2000n : 0n;
+  const fromBlock = latest > BigInt(2000) ? latest - BigInt(2000) : BigInt(0);
   const logs = await pc.getContractEvents({
     address: d.contracts.vault,
     abi: vaultAbi,

@@ -38,7 +38,7 @@ type WalletRes = {
 };
 
 export default function LabWalletPage() {
-  const [address, setAddress] = useState(ANVIL_USER);
+  const [address, setAddress] = useState<string>(ANVIL_USER);
   const [data, setData] = useState<WalletRes | null>(null);
   const [loading, setLoading] = useState(false);
 
