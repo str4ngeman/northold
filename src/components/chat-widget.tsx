@@ -1,8 +1,9 @@
 "use client";
 
+import { MessageCircle, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
-import { LetterButton } from "@/components/kinetic/letter-button";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useSession } from "@/hooks/use-session";
 
@@ -49,32 +50,63 @@ export function ChatWidget() {
   }
 
   return (
-    <div className="chat-dock">
-      {open && (
-        <div className="glass chat-panel" data-lenis-prevent>
-          <p className="label">Support</p>
-          <div className="chat-log">
-            {messages.length === 0 && <p className="body">Ask anything about your vault.</p>}
-            {messages.map((m) => (
-              <p key={m.id} className={`chat-msg chat-msg--${m.sender}`}>
-                {m.body}
-              </p>
-            ))}
-            <div ref={bottom} />
-          </div>
-          <form
-            className="chat-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
+    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 lg:bottom-6 lg:right-6">
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.98 }}
+            className="w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-[1.75rem] bg-[#11161f] p-4 shadow-2xl ring-1 ring-white/10"
           >
-            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Message" />
-            <LetterButton label="Send" type="submit" />
-          </form>
-        </div>
-      )}
-      <LetterButton label={open ? "Close chat" : "Support"} variant="ghost" onClick={() => setOpen((v) => !v)} />
+            <p className="text-sm font-semibold">Need a bearing?</p>
+            <p className="text-xs text-[var(--ink-3)]">Ask about locks, claims, or early exit.</p>
+            <div className="mt-3 flex max-h-56 flex-col gap-2 overflow-auto">
+              {messages.length === 0 && (
+                <p className="rounded-2xl bg-white/5 px-3 py-2 text-sm text-[var(--ink-2)]">
+                  Try: “What happens if I claim early?”
+                </p>
+              )}
+              {messages.map((m) => (
+                <p
+                  key={m.id}
+                  className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm ${
+                    m.sender === "user" ? "self-end bg-[var(--light)]/15" : "self-start bg-white/6"
+                  }`}
+                >
+                  {m.body}
+                </p>
+              ))}
+              <div ref={bottom} />
+            </div>
+            <form
+              className="mt-3 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send();
+              }}
+            >
+              <input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Message"
+                className="h-11 flex-1 rounded-full bg-white/5 px-4 text-sm outline-none ring-1 ring-white/10"
+              />
+              <button type="submit" className="grid size-11 place-items-center rounded-full bg-[var(--light)] text-[#16120a]">
+                <Send className="size-4" />
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="grid size-14 place-items-center rounded-full bg-[var(--light)] text-[#16120a] shadow-[0_12px_30px_-10px_rgba(217,181,106,.8)] transition-transform active:scale-95"
+        aria-label={open ? "Close chat" : "Open support"}
+      >
+        {open ? <X className="size-5" /> : <MessageCircle className="size-5" />}
+      </button>
     </div>
   );
 }

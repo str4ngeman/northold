@@ -1,6 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
+import { BRAND } from "@/lib/brand";
+
 export type SessionUser = {
   id: string;
   email?: string;
@@ -10,7 +12,7 @@ export type SessionUser = {
   referralCode: string;
 };
 
-const COOKIE = "leagueto_session";
+const COOKIE = BRAND.cookies.session;
 
 function secret() {
   const value = process.env.AUTH_SECRET;

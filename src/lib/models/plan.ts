@@ -11,8 +11,13 @@ const planSchema = new Schema(
     apyBps: { type: Number, required: true },
     emergencyFeeBps: { type: Number, required: true },
     active: { type: Boolean, default: true },
+    onChainId: { type: Number },
   },
   { timestamps: true },
 );
+
+if (mongoose.models.Plan && !mongoose.models.Plan.schema.path("onChainId")) {
+  mongoose.deleteModel("Plan");
+}
 
 export const Plan = mongoose.models.Plan || mongoose.model("Plan", planSchema);

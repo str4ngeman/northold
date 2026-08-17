@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# foundry / local chain
+.anvil.pid
+.anvil.log
+/contracts/out
+/contracts/cache
+/contracts/broadcast
+/contracts/lib
+/contracts/deployments/plans.seed.json

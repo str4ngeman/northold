@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useDisconnect } from "wagmi";
+import { Copy, Gift } from "lucide-react";
 
-import { LetterButton } from "@/components/kinetic/letter-button";
+import { CtaButton } from "@/components/ui/cta-button";
+import { FadeIn } from "@/components/motion";
+import { Surface } from "@/components/ui/surface";
 import { WalletButton } from "@/components/wallet-button";
 import { useSession } from "@/hooks/use-session";
 import { formatAddress } from "@/lib/format";
@@ -30,17 +33,15 @@ export default function AccountPage() {
       .then(setRefs);
   }, [user]);
 
-  if (loading) return <main className="page" />;
+  if (loading) return <div className="h-40 animate-pulse rounded-[1.75rem] bg-white/5" />;
   if (!user) {
     return (
-      <main className="page">
-        <div className="container">
-          <h1 className="h2">Sign in first</h1>
-          <div style={{ marginTop: "var(--s-4)" }}>
-            <LetterButton href="/login" label="Sign in" />
-          </div>
+      <div className="mx-auto max-w-lg py-16 text-center">
+        <h1 className="text-2xl font-semibold">Sign in first</h1>
+        <div className="mt-5">
+          <CtaButton href="/login">Sign in</CtaButton>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -54,48 +55,53 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="page">
-      <div className="container" style={{ maxWidth: 720 }}>
-        <p className="label">Account</p>
-        <h1 className="h2 hero-copy">{user.name || user.email || "Member"}</h1>
-        <div className="glass" style={{ marginTop: "var(--s-5)", padding: "1.6rem" }}>
-          <div className="stat">
-            <dt>Email</dt>
-            <dd>{user.email || "—"}</dd>
-          </div>
-          <div className="stat">
-            <dt>Wallet</dt>
-            <dd>{user.address ? formatAddress(user.address) : "Not linked"}</dd>
-          </div>
-          <div className="stat">
-            <dt>Role</dt>
-            <dd>{user.role}</dd>
-          </div>
-          <div style={{ marginTop: "1.2rem", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            {!user.address && <WalletButton />}
-            <LetterButton label="Sign out" variant="ghost" onClick={() => void signOut()} />
-          </div>
+    <div className="mx-auto max-w-2xl">
+      <FadeIn>
+        <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Account</p>
+        <h1 className="mt-2 text-3xl font-semibold">{user.name || user.email || "Member"}</h1>
+      </FadeIn>
+      <Surface className="mt-6 space-y-4 p-6">
+        <Row label="Email" value={user.email || "—"} />
+        <Row label="Wallet" value={user.address ? formatAddress(user.address) : "Not linked"} />
+        <Row label="Role" value={user.role} />
+        <div className="flex flex-wrap gap-3 pt-2">
+          {!user.address && <WalletButton />}
+          <CtaButton variant="ghost" onClick={() => void signOut()}>
+            Sign out
+          </CtaButton>
         </div>
+      </Surface>
 
-        <p className="label" style={{ marginTop: "var(--s-6)" }}>
-          Referral
+      <Surface className="mt-6 p-6">
+        <div className="flex items-center gap-2">
+          <Gift className="size-5 text-[var(--light)]" />
+          <h2 className="text-lg font-semibold">Invite friends</h2>
+        </div>
+        <p className="mt-2 text-sm text-[var(--ink-2)]">
+          Invite people north. New sign-ups attach to your code. {refs?.count ?? 0} have joined so far.
         </p>
-        <div className="glass" style={{ marginTop: "1rem", padding: "1.6rem" }}>
-          <p className="body">Share this link. New sign-ups attach to your code.</p>
-          <p style={{ marginTop: "0.8rem", color: "var(--light)", wordBreak: "break-all" }}>{link}</p>
-          <p className="body" style={{ marginTop: "0.8rem" }}>
-            {refs?.count ?? 0} referred
-          </p>
-          <LetterButton
-            label="Copy link"
+        <p className="mt-3 break-all rounded-2xl bg-black/20 px-4 py-3 text-sm text-[var(--light)]">{link}</p>
+        <div className="mt-4">
+          <CtaButton
             variant="ghost"
             onClick={() => {
               void navigator.clipboard.writeText(link);
               toast.success("Referral link copied");
             }}
-          />
+          >
+            <Copy className="size-4" /> Copy link
+          </CtaButton>
         </div>
-      </div>
-    </main>
+      </Surface>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-white/6 py-3 last:border-0">
+      <span className="text-sm text-[var(--ink-3)]">{label}</span>
+      <span className="text-sm font-medium">{value}</span>
+    </div>
   );
 }

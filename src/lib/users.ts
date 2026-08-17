@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 
+import { BRAND } from "@/lib/brand";
 import { User } from "@/lib/models/user";
 
 export async function findReferrer(code?: string | null) {
-  const fromCookie = (await cookies()).get("leagueto_ref")?.value?.trim();
+  const fromCookie = (await cookies()).get(BRAND.cookies.referral)?.value?.trim();
   const value = (code || fromCookie)?.trim().toLowerCase();
   if (!value) return null;
   return User.findOne({ referralCode: value });

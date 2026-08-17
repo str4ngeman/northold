@@ -1,80 +1,91 @@
 "use client";
 
-import Link from "next/link";
-
-import { LetterButton } from "@/components/kinetic/letter-button";
-import { Reveal } from "@/components/kinetic/reveal";
-import { VaultCard } from "@/components/vault-card";
+import { CountUp, FadeIn } from "@/components/motion";
+import { EmptyVault } from "@/components/dashboard/empty-vault";
+import { PositionCard } from "@/components/dashboard/position-card";
+import { CtaButton } from "@/components/ui/cta-button";
+import { Surface } from "@/components/ui/surface";
 import { WalletButton } from "@/components/wallet-button";
 import { useNow } from "@/hooks/use-now";
 import { usePositions } from "@/hooks/use-positions";
 import { useSession } from "@/hooks/use-session";
+import { formatUsd } from "@/lib/format";
+import { useAccount } from "wagmi";
 
 export default function VaultPage() {
   const now = useNow();
   const { user, loading } = useSession();
-  const { views } = usePositions(now);
+  const { address } = useAccount();
+  const { views, catalog } = usePositions(now);
 
-  if (loading) return <main className="page" />;
+  const locked = views.reduce((sum, v) => sum + v.principalUsd, 0);
+  const claimable = views.reduce((sum, v) => sum + v.claimableUsdt, 0);
+  const canSeeVault = Boolean(user || (catalog?.protocol && address));
+
+  if (loading) return <div className="h-40 animate-pulse rounded-[1.75rem] bg-white/5" />;
 
   return (
-    <main className="page">
-      <div className="container">
-        <div className="split">
-          <div>
-            <p className="label">Vault</p>
-            <Reveal as="h1" className="h2 hero-copy">
-              A book of plates
-            </Reveal>
-            <p className="body hero-body">
-              Each card is a position NFT. Claim USDT, wait the lock, or break the seal.
-            </p>
-          </div>
-          <div>
-            <LetterButton href="/app/stake" label="Mint a card" />
-          </div>
+    <div className="mx-auto max-w-6xl">
+      <FadeIn className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Hold</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your positions</h1>
+          <p className="mt-2 max-w-lg text-sm text-[var(--ink-2)]">
+            {catalog?.protocol
+              ? `Cards on this hold are live NFTs on ${catalog.network.shortLabel}. Claim and unlock confirm in MetaMask.`
+              : "Each card is a live lock. Claim USDT whenever the light looks good."}
+          </p>
         </div>
+        <CtaButton href="/app/stake">Open a new hold</CtaButton>
+      </FadeIn>
 
-        {!user ? (
-          <div className="glass" style={{ marginTop: "var(--s-7)", padding: "3rem var(--gutter)" }}>
-            <p className="h3">Sign in to open the vault</p>
-            <p className="body" style={{ marginTop: "0.8rem" }}>
-              Connect a wallet or log in with email.
-            </p>
-            <div style={{ marginTop: "var(--s-4)", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              <WalletButton />
-              <LetterButton href="/login" label="Email login" variant="ghost" />
-            </div>
+      {canSeeVault && views.length > 0 && (
+        <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <Stat label="Locked value" value={locked} money />
+          <Stat label="Claimable USDT" value={claimable} money accent />
+          <Stat label="Open positions" value={views.length} />
+        </div>
+      )}
+
+      {!canSeeVault ? (
+        <Surface className="mt-10 p-8">
+          <h2 className="text-2xl font-semibold">Connect to see your hold</h2>
+          <p className="mt-2 text-sm text-[var(--ink-2)]">
+            {catalog?.protocol
+              ? `Connect MetaMask on ${catalog.network.shortLabel}. Position cards follow the wallet that minted them.`
+              : "Wallet or email — same positions either way."}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <WalletButton />
+            <CtaButton href="/login" variant="ghost">
+              Email login
+            </CtaButton>
           </div>
-        ) : views.length === 0 ? (
-          <div className="glass" style={{ marginTop: "var(--s-7)", padding: "3rem var(--gutter)" }}>
-            <p className="h3">No cards yet</p>
-            <div style={{ marginTop: "var(--s-4)" }}>
-              <LetterButton href="/app/stake" label="Mint a card" />
-            </div>
-          </div>
-        ) : (
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "var(--s-7) 0 0",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-              gap: "2.5rem",
-              justifyItems: "center",
-            }}
-          >
-            {views.map((view) => (
-              <li key={view.tokenId}>
-                <Link href={`/app/position/${view.tokenId}`}>
-                  <VaultCard view={view} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </main>
+        </Surface>
+      ) : views.length === 0 ? (
+        <div className="mt-10">
+          <EmptyVault />
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {views.map((view, i) => (
+            <FadeIn key={view.tokenId} delay={i * 0.05}>
+              <PositionCard view={view} href={`/app/position/${view.tokenId}`} />
+            </FadeIn>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, accent, money }: { label: string; value: number; accent?: boolean; money?: boolean }) {
+  return (
+    <Surface className="p-5">
+      <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${accent ? "text-[var(--gain)]" : ""}`}>
+        <CountUp value={value} format={money ? (n) => formatUsd(n) : (n) => String(Math.round(n))} />
+      </p>
+    </Surface>
   );
 }

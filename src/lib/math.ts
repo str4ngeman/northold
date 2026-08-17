@@ -92,6 +92,14 @@ export function isMatured(
   return now >= unlockAtMs(position.startedAt, lockSeconds);
 }
 
+export function projectedUsdt(principalUsdValue: number, apyBps: number, lockSeconds: number) {
+  return accruedUsdt(principalUsdValue, apyBps, lockSeconds);
+}
+
+export function dailyUsdt(principalUsdValue: number, apyBps: number) {
+  return accruedUsdt(principalUsdValue, apyBps, DAY_SECONDS);
+}
+
 export function emergencyFeeAmount(principalAmount: number, feeBps: number) {
   return principalAmount * (feeBps / 10_000);
 }

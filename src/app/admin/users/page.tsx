@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { LetterButton } from "@/components/kinetic/letter-button";
+import { AdminModal } from "@/components/admin/modal";
+import { AdminField, AdminPage, AdminTable, EmptyRow, StatusPill, Td, Th } from "@/components/admin/ui";
+import { formatAddress } from "@/lib/format";
 
 type UserRow = {
   id: string;
@@ -17,6 +20,12 @@ type UserRow = {
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [query, setQuery] = useState("");
+  const [editing, setEditing] = useState<UserRow | null>(null);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("user");
+  const [banned, setBanned] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   async function load() {
     const res = await fetch("/api/admin/users");
@@ -27,57 +36,106 @@ export default function AdminUsers() {
     void load();
   }, []);
 
-  async function patch(id: string, body: Record<string, unknown>) {
-    const res = await fetch(`/api/admin/users/${id}`, {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      [u.name, u.email, u.address, u.referralCode, u.role].some((v) => v?.toLowerCase().includes(q)),
+    );
+  }, [users, query]);
+
+  function openEdit(user: UserRow) {
+    setEditing(user);
+    setName(user.name ?? "");
+    setRole(user.role);
+    setBanned(user.banned);
+  }
+
+  async function submit() {
+    if (!editing) return;
+    setBusy(true);
+    const res = await fetch(`/api/admin/users/${editing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ name, role, banned }),
     });
-    if (!res.ok) toast.error("Update failed");
+    setBusy(false);
+    if (!res.ok) {
+      toast.error("Update failed");
+      return;
+    }
+    toast.success("Member updated");
+    setEditing(null);
     await load();
   }
 
   return (
-    <div>
-      <p className="label">Users</p>
-      <h1 className="h2 hero-copy">Members</h1>
-      <div className="admin-table glass">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Wallet</th>
-              <th>Role</th>
-              <th>Ref</th>
-              <th></th>
+    <AdminPage kicker="Users" title="Members" description="Search, then open a row to change role or suspend an account.">
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search name, email, wallet…"
+        className="mb-4 h-11 w-full max-w-md rounded-full bg-white/5 px-4 text-sm outline-none ring-1 ring-white/10"
+      />
+      <AdminTable>
+        <thead>
+          <tr>
+            <Th>Member</Th>
+            <Th>Wallet</Th>
+            <Th>Role</Th>
+            <Th>Status</Th>
+            <Th />
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.length === 0 && <EmptyRow cols={5} text="No members match." />}
+          {filtered.map((u) => (
+            <tr
+              key={u.id}
+              className="cursor-pointer border-t border-white/6 hover:bg-white/[0.03]"
+              onClick={() => openEdit(u)}
+            >
+              <Td>
+                <p className="font-medium">{u.name || "—"}</p>
+                <p className="text-xs text-[var(--ink-3)]">{u.email || u.referralCode}</p>
+              </Td>
+              <Td className="num text-xs">{u.address ? formatAddress(u.address) : "—"}</Td>
+              <Td className="capitalize">{u.role}</Td>
+              <Td>
+                <StatusPill on={!u.banned} warn={u.banned} label={u.banned ? "Banned" : "Active"} />
+              </Td>
+              <Td className="text-right">
+                <Pencil className="inline size-4 text-[var(--ink-3)]" />
+              </Td>
             </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.name}</td>
-                <td>{u.email}</td>
-                <td>{u.address}</td>
-                <td>{u.role}</td>
-                <td>{u.referralCode}</td>
-                <td>
-                  <LetterButton
-                    label={u.role === "admin" ? "Make user" : "Make admin"}
-                    variant="ghost"
-                    onClick={() => void patch(u.id, { role: u.role === "admin" ? "user" : "admin" })}
-                  />
-                  <LetterButton
-                    label={u.banned ? "Reinstate" : "Ban"}
-                    variant="ghost"
-                    onClick={() => void patch(u.id, { banned: !u.banned })}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          ))}
+        </tbody>
+      </AdminTable>
+
+      <AdminModal
+        open={Boolean(editing)}
+        onOpenChange={(next) => !next && setEditing(null)}
+        title={editing?.name || editing?.email || "Member"}
+        description={editing?.address ? formatAddress(editing.address) : editing?.email || undefined}
+        onSubmit={submit}
+        busy={busy}
+        submitLabel="Save member"
+      >
+        <AdminField label="Name">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </AdminField>
+        <AdminField label="Role">
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </AdminField>
+        <p className="text-xs text-[var(--ink-3)]">Referral code {editing?.referralCode}</p>
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-2)]">
+          <input type="checkbox" checked={banned} onChange={(e) => setBanned(e.target.checked)} />
+          Suspend this account
+        </label>
+      </AdminModal>
+    </AdminPage>
   );
 }

@@ -3,8 +3,9 @@
 import { useRef, useState, type RefObject } from "react";
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
+import { Download } from "lucide-react";
 
-import { LetterButton } from "@/components/kinetic/letter-button";
+import { CtaButton } from "@/components/ui/cta-button";
 import { formatTokenId } from "@/lib/format";
 
 type ShareCardButtonProps = {
@@ -24,10 +25,10 @@ export function ShareCardButton({ tokenId, targetRef }: ShareCardButtonProps) {
       const dataUrl = await toPng(targetRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-        backgroundColor: "#050917",
+        backgroundColor: "#07090f",
       });
       const link = document.createElement("a");
-      link.download = `leagueto-vault-${formatTokenId(tokenId).slice(1)}.png`;
+      link.download = `northold-hold-${formatTokenId(tokenId).slice(1)}.png`;
       link.href = dataUrl;
       link.click();
       toast.success("Card image saved");
@@ -39,5 +40,10 @@ export function ShareCardButton({ tokenId, targetRef }: ShareCardButtonProps) {
     }
   }
 
-  return <LetterButton label={busy ? "Saving" : "Save card PNG"} variant="ghost" onClick={download} disabled={busy} />;
+  return (
+    <CtaButton variant="ghost" onClick={download} disabled={busy}>
+      <Download className="size-4" />
+      {busy ? "Saving" : "Save PNG"}
+    </CtaButton>
+  );
 }

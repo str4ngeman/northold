@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 
 import { connectDb } from "@/lib/db";
+import { BRAND } from "@/lib/brand";
 import { AuthNonce } from "@/lib/models/nonce";
 
 export async function GET() {
@@ -11,7 +12,6 @@ export async function GET() {
     value: nonce,
     expiresAt: new Date(Date.now() + 5 * 60 * 1000),
   });
-  const domain = process.env.NEXT_PUBLIC_APP_NAME || "Leagueto";
-  const message = `${domain} wants you to sign in.\n\nNonce: ${nonce}`;
+  const message = `${BRAND.siwePrefix}\n\nNonce: ${nonce}`;
   return NextResponse.json({ nonce, message });
 }

@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { MOCK_WALLET, NEXT_TOKEN_ID, getPlan, getToken } from "@/lib/dummy";
+import { BRAND } from "@/lib/brand";
 import {
   accruedUsdt,
   buildPositionView,
@@ -145,6 +146,6 @@ export const useVaultStore = create<VaultState>()(
         return { returned, fee, forfeitedUsdt };
       },
     }),
-    { name: "leagueto-vault" },
+    { name: BRAND.storage.hold },
   ),
 );

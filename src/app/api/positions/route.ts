@@ -12,6 +12,7 @@ import { Plan } from "@/lib/models/plan";
 import { Position } from "@/lib/models/position";
 import { Settings } from "@/lib/models/settings";
 import { Token } from "@/lib/models/token";
+import { getRuntimeNetwork } from "@/lib/network-store";
 
 export async function GET() {
   const auth = await requireUser();
@@ -34,13 +35,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid mint payload" }, { status: 400 });
   }
 
-  const [tokenDoc, planDoc, settings] = await Promise.all([
+  const [tokenDoc, planDoc, settings, runtime] = await Promise.all([
     Token.findOne({ slug: body.assetId, active: true }),
     Plan.findOne({ slug: body.planId, active: true }),
     Settings.findOne({ key: "app" }),
+    getRuntimeNetwork(),
   ]);
   if (!tokenDoc || !planDoc || !settings) {
     return NextResponse.json({ error: "Unknown plan or token" }, { status: 400 });
+  }
+  if (runtime.protocol) {
+    return NextResponse.json(
+      { error: "This catalog is on-chain. Connect MetaMask and mint from Earn." },
+      { status: 400 },
+    );
   }
 
   const token = mapToken(tokenDoc);

@@ -3,18 +3,34 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import {
+  LayoutDashboard,
+  Layers3,
+  Coins,
+  Users,
+  WalletCards,
+  Gift,
+  MessageCircle,
+  Settings,
+  FlaskConical,
+  ArrowLeft,
+} from "lucide-react";
 
+import { Logo } from "@/components/brand/logo";
+import { NetworkBadge } from "@/components/network-badge";
 import { useSession } from "@/hooks/use-session";
+import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/plans", label: "Plans" },
-  { href: "/admin/tokens", label: "Tokens" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/positions", label: "Positions" },
-  { href: "/admin/referrals", label: "Referrals" },
-  { href: "/admin/support", label: "Support" },
-  { href: "/admin/settings", label: "Settings" },
+  { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/plans", label: "Bearings", icon: Layers3 },
+  { href: "/admin/tokens", label: "Tokens", icon: Coins },
+  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/positions", label: "Positions", icon: WalletCards },
+  { href: "/admin/referrals", label: "Referrals", icon: Gift },
+  { href: "/admin/support", label: "Support", icon: MessageCircle },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/lab", label: "Lab", icon: FlaskConical },
 ];
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
@@ -29,25 +45,34 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   }, [user, loading, router]);
 
   if (loading || user?.role !== "admin") {
-    return <main className="page"><div className="container"><p className="label">Admin</p></div></main>;
+    return <main className="grid min-h-dvh place-items-center text-sm text-[var(--ink-3)]">Checking admin access…</main>;
   }
 
   return (
-    <div className="admin">
-      <aside className="admin__side">
-        <Link href="/" className="nav__brand" style={{ marginBottom: "2rem" }}>
-          Leagueto
-        </Link>
+    <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
+      <aside className="flex flex-col gap-1 border-r border-white/6 bg-black/20 p-5">
+        <Logo className="mb-6" />
+        <div className="mb-4 px-3">
+          <NetworkBadge />
+        </div>
         {LINKS.map((item) => (
-          <Link key={item.href} href={item.href} data-active={pathname === item.href}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm",
+              pathname === item.href ? "bg-white/8 text-white" : "text-[var(--ink-2)] hover:bg-white/5",
+            )}
+          >
+            <item.icon className="size-4" />
             {item.label}
           </Link>
         ))}
-        <Link href="/app" style={{ marginTop: "auto" }}>
-          Back to app
+        <Link href="/app" className="mt-auto inline-flex items-center gap-2 px-3 py-2 text-sm text-[var(--ink-3)]">
+          <ArrowLeft className="size-4" /> Back to app
         </Link>
       </aside>
-      <div className="admin__main">{children}</div>
+      <div className="p-6 lg:p-10">{children}</div>
     </div>
   );
 }

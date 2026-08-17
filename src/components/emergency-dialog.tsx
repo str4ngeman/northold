@@ -35,7 +35,7 @@ export function EmergencyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-lenis-prevent className="glass" style={{ borderRadius: 0, maxWidth: 420 }}>
+      <DialogContent className="max-w-md rounded-[1.75rem] border-white/10 bg-[#11161f]">
         <DialogHeader>
           <DialogTitle>Break the seal?</DialogTitle>
           <DialogDescription>
@@ -44,7 +44,7 @@ export function EmergencyDialog({
             yield stays in your wallet.
           </DialogDescription>
         </DialogHeader>
-        <dl className="glass" style={{ padding: "1rem", fontSize: "var(--fs-small)" }}>
+        <dl className="rounded-2xl bg-black/20 p-4 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">You get back</dt>
             <dd>{formatTokenAmount(returned, view.token.symbol)}</dd>

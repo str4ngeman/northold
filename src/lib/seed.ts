@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 
+import { BRAND, DEFAULT_BEARINGS } from "@/lib/brand";
 import { DAY_SECONDS } from "@/lib/math";
 import { Plan } from "@/lib/models/plan";
 import { Settings } from "@/lib/models/settings";
@@ -8,24 +9,39 @@ import { User } from "@/lib/models/user";
 import { makeReferralCode } from "@/lib/referral-code";
 
 export async function seedDatabase() {
+  await alignBrand();
+
   if ((await Settings.countDocuments()) === 0) {
     await Settings.create({
       key: "app",
-      siteName: process.env.NEXT_PUBLIC_APP_NAME || "Leagueto",
-      tagline: "The card is the stake.",
+      siteName: process.env.NEXT_PUBLIC_APP_NAME || BRAND.name,
+      tagline: BRAND.tagline,
       rewardSymbol: "USDT",
       referralBps: 500,
       supportEnabled: true,
       nextTokenId: 1,
+      activeNetwork: "anvil",
+      networks: {
+        mainnet: {
+          chainId: 1,
+          rpcUrl: process.env.MAINNET_RPC_URL || process.env.NEXT_PUBLIC_MAINNET_RPC_URL || "",
+          tokens: {
+            usdt: { address: "0xdac17f958d2ee523a2206206994597c13d831ec7", decimals: 6 },
+            usdc: { address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", decimals: 6 },
+            weth: { address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", decimals: 18 },
+            wbtc: { address: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", decimals: 8 },
+          },
+        },
+      },
     });
   }
 
   if ((await Plan.countDocuments()) === 0) {
     await Plan.insertMany([
       {
-        slug: "pulse",
-        name: "Pulse",
-        tagline: "Short lock, faster turnover",
+        slug: DEFAULT_BEARINGS[0].slug,
+        name: DEFAULT_BEARINGS[0].name,
+        tagline: DEFAULT_BEARINGS[0].tagline,
         lockSeconds: 30 * DAY_SECONDS,
         minUsd: 100,
         maxUsd: 10_000,
@@ -34,9 +50,9 @@ export async function seedDatabase() {
         active: true,
       },
       {
-        slug: "horizon",
-        name: "Horizon",
-        tagline: "Balanced yield and commitment",
+        slug: DEFAULT_BEARINGS[1].slug,
+        name: DEFAULT_BEARINGS[1].name,
+        tagline: DEFAULT_BEARINGS[1].tagline,
         lockSeconds: 90 * DAY_SECONDS,
         minUsd: 250,
         maxUsd: 25_000,
@@ -45,9 +61,9 @@ export async function seedDatabase() {
         active: true,
       },
       {
-        slug: "apex",
-        name: "Apex",
-        tagline: "Longest lock, highest coupon",
+        slug: DEFAULT_BEARINGS[2].slug,
+        name: DEFAULT_BEARINGS[2].name,
+        tagline: DEFAULT_BEARINGS[2].tagline,
         lockSeconds: 180 * DAY_SECONDS,
         minUsd: 500,
         maxUsd: 50_000,
@@ -64,7 +80,7 @@ export async function seedDatabase() {
         slug: "usdt",
         symbol: "USDT",
         name: "Tether USD",
-        address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        address: "0x0000000000000000000000000000000000000000",
         decimals: 6,
         priceUsd: 1,
         color: "#26A17B",
@@ -74,7 +90,7 @@ export async function seedDatabase() {
         slug: "usdc",
         symbol: "USDC",
         name: "USD Coin",
-        address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        address: "0x0000000000000000000000000000000000000000",
         decimals: 6,
         priceUsd: 1,
         color: "#2775CA",
@@ -84,7 +100,7 @@ export async function seedDatabase() {
         slug: "weth",
         symbol: "WETH",
         name: "Wrapped Ether",
-        address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        address: "0x0000000000000000000000000000000000000000",
         decimals: 18,
         priceUsd: 3500,
         color: "#8B5CF6",
@@ -94,7 +110,7 @@ export async function seedDatabase() {
         slug: "wbtc",
         symbol: "WBTC",
         name: "Wrapped Bitcoin",
-        address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+        address: "0x0000000000000000000000000000000000000000",
         decimals: 8,
         priceUsd: 95_000,
         color: "#F7931A",
@@ -113,5 +129,31 @@ export async function seedDatabase() {
       role: "admin",
       referralCode: makeReferralCode(),
     });
+  }
+}
+
+async function alignBrand() {
+  await Settings.updateMany(
+    { siteName: { $in: ["Leagueto", "leagueto"] } },
+    { $set: { siteName: process.env.NEXT_PUBLIC_APP_NAME || BRAND.name, tagline: BRAND.tagline } },
+  );
+  await Settings.updateMany(
+    { tagline: "The card is the stake." },
+    { $set: { tagline: BRAND.tagline } },
+  );
+
+  const previous = [
+    { slug: "pulse", names: ["Pulse"] },
+    { slug: "horizon", names: ["Horizon"] },
+    { slug: "apex", names: ["Apex"] },
+  ] as const;
+
+  for (const item of previous) {
+    const bearing = DEFAULT_BEARINGS.find((row) => row.slug === item.slug);
+    if (!bearing) continue;
+    await Plan.updateMany(
+      { slug: item.slug, name: { $in: [...item.names] } },
+      { $set: { name: bearing.name, tagline: bearing.tagline } },
+    );
   }
 }

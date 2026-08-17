@@ -16,6 +16,8 @@ export type Token = {
   decimals: number;
   priceUsd: number;
   color: string;
+  active?: boolean;
+  network?: "anvil" | "sepolia" | "mainnet" | "custom";
 };
 
 export type Plan = {
@@ -27,6 +29,37 @@ export type Plan = {
   maxUsd: number;
   apyBps: number;
   emergencyFeeBps: number;
+  active?: boolean;
+  onChainId?: number;
+};
+
+export type ProtocolConfig = {
+  networkId: "anvil" | "sepolia" | "mainnet";
+  mode: "lab" | "test" | "live";
+  name: string;
+  chainId: number;
+  rpcUrl: string;
+  explorerUrl: string;
+  vault: `0x${string}`;
+  card: `0x${string}`;
+  oracle: `0x${string}`;
+  lens: `0x${string}`;
+  planIds: Record<string, number>;
+};
+
+export type AppNetworkView = {
+  id: "anvil" | "sepolia" | "mainnet";
+  name: string;
+  shortLabel: string;
+  mode: "lab" | "test" | "live";
+  chainId: number;
+  rpcUrl: string;
+  explorerUrl: string;
+  capabilities: {
+    warp: boolean;
+    faucet: boolean;
+    deployMocks: boolean;
+  };
 };
 
 export type PositionNft = {

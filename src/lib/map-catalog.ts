@@ -9,6 +9,8 @@ export function mapPlan(doc: {
   maxUsd: number;
   apyBps: number;
   emergencyFeeBps: number;
+  active?: boolean;
+  onChainId?: number;
 }): PlanType {
   return {
     id: doc.slug,
@@ -19,6 +21,8 @@ export function mapPlan(doc: {
     maxUsd: doc.maxUsd,
     apyBps: doc.apyBps,
     emergencyFeeBps: doc.emergencyFeeBps,
+    active: doc.active !== false,
+    onChainId: doc.onChainId,
   };
 }
 
@@ -30,6 +34,7 @@ export function mapToken(doc: {
   decimals: number;
   priceUsd: number;
   color?: string;
+  active?: boolean;
 }): TokenType {
   return {
     id: doc.slug,
@@ -39,5 +44,6 @@ export function mapToken(doc: {
     decimals: doc.decimals,
     priceUsd: doc.priceUsd,
     color: doc.color ?? "#e2c36d",
+    active: doc.active !== false,
   };
 }

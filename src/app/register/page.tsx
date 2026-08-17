@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { LetterButton } from "@/components/kinetic/letter-button";
+import { CtaButton } from "@/components/ui/cta-button";
+import { FadeIn } from "@/components/motion";
+import { Surface } from "@/components/ui/surface";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,8 +31,8 @@ export default function RegisterPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      toast.success("Account created");
-      router.push("/app");
+      toast.success("Hold unlocked. Time to set a bearing.");
+      router.push("/app/stake");
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Register failed");
@@ -40,28 +42,31 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="page">
-      <div className="container" style={{ maxWidth: 480 }}>
-        <p className="label">Account</p>
-        <h1 className="h2 hero-copy">Create an account</h1>
-        <form className="glass" style={{ marginTop: "var(--s-5)", padding: "1.6rem" }} onSubmit={(e) => void onSubmit(e)}>
-          <label className="field">
-            <span className="label">Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="field" style={{ marginTop: "1.2rem" }}>
-            <span className="label">Email</span>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
-          <label className="field" style={{ marginTop: "1.2rem" }}>
-            <span className="label">Password</span>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
-          </label>
-          <div style={{ marginTop: "1.6rem" }}>
-            <LetterButton label={busy ? "Creating" : "Create account"} type="submit" disabled={busy} />
-          </div>
-        </form>
-      </div>
+    <main className="mx-auto max-w-md px-4 py-16">
+      <FadeIn>
+        <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Account</p>
+        <h1 className="mt-3 text-3xl font-semibold">Create your hold</h1>
+        <p className="mt-2 text-sm text-[var(--ink-2)]">Takes a minute. Yield starts after your first lock.</p>
+        <Surface className="mt-6 p-6">
+          <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
+            <label className="field">
+              <span>Name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="field">
+              <span>Email</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </label>
+            <label className="field">
+              <span>Password</span>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+            </label>
+            <CtaButton type="submit" disabled={busy} className="w-full">
+              {busy ? "Creating…" : "Create account"}
+            </CtaButton>
+          </form>
+        </Surface>
+      </FadeIn>
     </main>
   );
 }

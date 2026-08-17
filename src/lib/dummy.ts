@@ -1,3 +1,4 @@
+import { DEFAULT_BEARINGS } from "@/lib/brand";
 import { DAY_SECONDS, principalUsd, rarityFrom, sizeTierFromUsd } from "@/lib/math";
 import type { Plan, PositionNft, Token } from "@/lib/types";
 
@@ -46,9 +47,9 @@ export const TOKENS: Token[] = [
 
 export const PLANS: Plan[] = [
   {
-    id: "pulse",
-    name: "Pulse",
-    tagline: "Short lock, faster turnover",
+    id: DEFAULT_BEARINGS[0].slug,
+    name: DEFAULT_BEARINGS[0].name,
+    tagline: DEFAULT_BEARINGS[0].tagline,
     lockSeconds: 30 * DAY_SECONDS,
     minUsd: 100,
     maxUsd: 10_000,
@@ -56,9 +57,9 @@ export const PLANS: Plan[] = [
     emergencyFeeBps: 1500,
   },
   {
-    id: "horizon",
-    name: "Horizon",
-    tagline: "Balanced yield and commitment",
+    id: DEFAULT_BEARINGS[1].slug,
+    name: DEFAULT_BEARINGS[1].name,
+    tagline: DEFAULT_BEARINGS[1].tagline,
     lockSeconds: 90 * DAY_SECONDS,
     minUsd: 250,
     maxUsd: 25_000,
@@ -66,9 +67,9 @@ export const PLANS: Plan[] = [
     emergencyFeeBps: 1200,
   },
   {
-    id: "apex",
-    name: "Apex",
-    tagline: "Longest lock, highest coupon",
+    id: DEFAULT_BEARINGS[2].slug,
+    name: DEFAULT_BEARINGS[2].name,
+    tagline: DEFAULT_BEARINGS[2].tagline,
     lockSeconds: 180 * DAY_SECONDS,
     minUsd: 500,
     maxUsd: 50_000,

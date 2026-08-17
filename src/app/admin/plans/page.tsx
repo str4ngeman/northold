@@ -1,9 +1,14 @@
 "use client";
 
+import { Pencil, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { LetterButton } from "@/components/kinetic/letter-button";
+import { AdminModal } from "@/components/admin/modal";
+import { AdminField, AdminPage, AdminTable, EmptyRow, StatusPill, Td, Th } from "@/components/admin/ui";
+import { CtaButton } from "@/components/ui/cta-button";
+import { formatApy, formatFee, formatLock, formatUsd } from "@/lib/format";
+import { DAY_SECONDS } from "@/lib/math";
 
 type PlanRow = {
   _id: string;
@@ -16,144 +21,248 @@ type PlanRow = {
   apyBps: number;
   emergencyFeeBps: number;
   active: boolean;
+  onChainId?: number | null;
 };
+
+type Draft = {
+  slug: string;
+  name: string;
+  tagline: string;
+  lockDays: string;
+  minUsd: string;
+  maxUsd: string;
+  apy: string;
+  emergencyFee: string;
+  active: boolean;
+};
+
+const emptyDraft = (): Draft => ({
+  slug: "",
+  name: "",
+  tagline: "",
+  lockDays: "30",
+  minUsd: "100",
+  maxUsd: "10000",
+  apy: "8",
+  emergencyFee: "15",
+  active: true,
+});
+
+function toDraft(plan?: PlanRow | null): Draft {
+  if (!plan) return emptyDraft();
+  return {
+    slug: plan.slug,
+    name: plan.name,
+    tagline: plan.tagline,
+    lockDays: String(Math.round(plan.lockSeconds / DAY_SECONDS)),
+    minUsd: String(plan.minUsd),
+    maxUsd: String(plan.maxUsd),
+    apy: String(plan.apyBps / 100),
+    emergencyFee: String(plan.emergencyFeeBps / 100),
+    active: plan.active,
+  };
+}
+
+function payload(draft: Draft) {
+  return {
+    slug: draft.slug.trim().toLowerCase(),
+    name: draft.name.trim(),
+    tagline: draft.tagline.trim(),
+    lockSeconds: Number(draft.lockDays) * DAY_SECONDS,
+    minUsd: Number(draft.minUsd),
+    maxUsd: Number(draft.maxUsd),
+    apyBps: Math.round(Number(draft.apy) * 100),
+    emergencyFeeBps: Math.round(Number(draft.emergencyFee) * 100),
+    active: draft.active,
+  };
+}
 
 export default function AdminPlans() {
   const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [vaultLive, setVaultLive] = useState(false);
+  const [editing, setEditing] = useState<PlanRow | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [busy, setBusy] = useState(false);
 
   async function load() {
     const res = await fetch("/api/admin/plans");
-    const data = await res.json();
+    const data = (await res.json()) as { plans?: PlanRow[]; vaultLive?: boolean };
     setPlans(data.plans ?? []);
+    setVaultLive(Boolean(data.vaultLive));
   }
 
   useEffect(() => {
     void load();
   }, []);
 
-  async function save(plan: PlanRow) {
-    const res = await fetch(`/api/admin/plans/${plan._id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(plan),
-    });
-    if (!res.ok) toast.error("Save failed");
-    else toast.success("Plan saved");
+  function openCreate() {
+    setEditing(null);
+    setDraft(emptyDraft());
+    setCreating(true);
+  }
+
+  function openEdit(plan: PlanRow) {
+    setCreating(false);
+    setDraft(toDraft(plan));
+    setEditing(plan);
+  }
+
+  function close() {
+    setCreating(false);
+    setEditing(null);
+  }
+
+  async function submit() {
+    const body = payload(draft);
+    if (!body.name || !Number.isFinite(body.lockSeconds) || body.lockSeconds <= 0) {
+      toast.error("Name and lock days are required");
+      return;
+    }
+    setBusy(true);
+    const res = creating
+      ? await fetch("/api/admin/plans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      : await fetch(`/api/admin/plans/${editing?._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+    setBusy(false);
+    const data = (await res.json()) as { error?: string; chain?: string };
+    if (!res.ok) {
+      toast.error(data.error || (creating ? "Could not create plan" : "Save failed"));
+      return;
+    }
+    toast.success(
+      creating
+        ? data.chain === "skipped"
+          ? "Plan created (deploy later to put it on-chain)"
+          : "Plan created on-chain"
+        : data.chain === "skipped"
+          ? "Plan saved"
+          : "Plan saved on-chain. Existing cards keep the APY they minted with.",
+    );
+    close();
     await load();
   }
 
-  return (
-    <div>
-      <p className="label">Plans</p>
-      <h1 className="h2 hero-copy">Configure locks</h1>
-      <CreatePlan onCreated={() => void load()} />
-      <div className="admin-stack">
-        {plans.map((plan) => (
-          <form
-            key={plan._id}
-            className="glass admin-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save(plan);
-            }}
-          >
-            <strong>{plan.slug}</strong>
-            <Grid>
-              <Field label="Name" value={plan.name} onChange={(v) => (plan.name = v)} />
-              <Field label="Tagline" value={plan.tagline} onChange={(v) => (plan.tagline = v)} />
-              <Field label="Lock seconds" value={String(plan.lockSeconds)} onChange={(v) => (plan.lockSeconds = Number(v))} />
-              <Field label="Min USD" value={String(plan.minUsd)} onChange={(v) => (plan.minUsd = Number(v))} />
-              <Field label="Max USD" value={String(plan.maxUsd)} onChange={(v) => (plan.maxUsd = Number(v))} />
-              <Field label="APY bps" value={String(plan.apyBps)} onChange={(v) => (plan.apyBps = Number(v))} />
-              <Field label="Emergency bps" value={String(plan.emergencyFeeBps)} onChange={(v) => (plan.emergencyFeeBps = Number(v))} />
-            </Grid>
-            <label className="label" style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-              <input
-                type="checkbox"
-                defaultChecked={plan.active}
-                onChange={(e) => {
-                  plan.active = e.target.checked;
-                }}
-              />
-              Active
-            </label>
-            <div style={{ marginTop: "1rem" }}>
-              <LetterButton label="Save" type="submit" />
-            </div>
-          </form>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="admin-grid">{children}</div>;
-}
-
-function CreatePlan({ onCreated }: { onCreated: () => void }) {
-  const [busy, setBusy] = useState(false);
-
-  async function create(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    setBusy(true);
-    const res = await fetch("/api/admin/plans", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slug: data.get("slug"),
-        name: data.get("name"),
-        tagline: data.get("tagline"),
-        lockSeconds: Number(data.get("lockSeconds")),
-        minUsd: Number(data.get("minUsd")),
-        maxUsd: Number(data.get("maxUsd")),
-        apyBps: Number(data.get("apyBps")),
-        emergencyFeeBps: Number(data.get("emergencyFeeBps")),
-      }),
-    });
-    setBusy(false);
-    if (!res.ok) {
-      toast.error("Could not create plan");
-      return;
-    }
-    e.currentTarget.reset();
-    toast.success("Plan created");
-    onCreated();
-  }
+  const open = creating || Boolean(editing);
 
   return (
-    <form className="glass admin-form" style={{ marginTop: "var(--s-5)" }} onSubmit={(e) => void create(e)}>
-      <strong>New plan</strong>
-      <Grid>
-        <label className="field"><span className="label">Slug</span><input name="slug" required /></label>
-        <label className="field"><span className="label">Name</span><input name="name" required /></label>
-        <label className="field"><span className="label">Tagline</span><input name="tagline" /></label>
-        <label className="field"><span className="label">Lock seconds</span><input name="lockSeconds" defaultValue={2592000} /></label>
-        <label className="field"><span className="label">Min USD</span><input name="minUsd" defaultValue={100} /></label>
-        <label className="field"><span className="label">Max USD</span><input name="maxUsd" defaultValue={10000} /></label>
-        <label className="field"><span className="label">APY bps</span><input name="apyBps" defaultValue={800} /></label>
-        <label className="field"><span className="label">Emergency bps</span><input name="emergencyFeeBps" defaultValue={1500} /></label>
-      </Grid>
-      <div style={{ marginTop: "1rem" }}>
-        <LetterButton label={busy ? "Creating" : "Create plan"} type="submit" disabled={busy} />
-      </div>
-    </form>
-  );
-}
+    <AdminPage
+      kicker="Bearings"
+      title="Lock bearings"
+      description={
+        vaultLive
+          ? "Edits write to Mongo and the vault on the active network. Cards already minted keep the coupon they locked in."
+          : "One row per bearing. Deploy from Lab to push these onto the hold."
+      }
+      action={
+        <CtaButton onClick={openCreate} className="h-11 px-5">
+          <Plus className="size-4" /> New bearing
+        </CtaButton>
+      }
+    >
+      <AdminTable>
+        <thead>
+          <tr>
+            <Th>Bearing</Th>
+            <Th>Lock</Th>
+            <Th>APY</Th>
+            <Th>Range</Th>
+            <Th>Exit fee</Th>
+            <Th>Chain</Th>
+            <Th>Status</Th>
+            <Th />
+          </tr>
+        </thead>
+        <tbody>
+          {plans.length === 0 && <EmptyRow cols={8} text="No plans yet. Create the first lock." />}
+          {plans.map((plan) => (
+            <tr
+              key={plan._id}
+              className="cursor-pointer border-t border-white/6 hover:bg-white/[0.03]"
+              onClick={() => openEdit(plan)}
+            >
+              <Td>
+                <p className="font-medium">{plan.name}</p>
+                <p className="text-xs text-[var(--ink-3)]">{plan.tagline || plan.slug}</p>
+              </Td>
+              <Td>{formatLock(plan.lockSeconds)}</Td>
+              <Td className="text-[var(--gain)]">{formatApy(plan.apyBps)}</Td>
+              <Td>
+                {formatUsd(plan.minUsd, 0)}–{formatUsd(plan.maxUsd, 0)}
+              </Td>
+              <Td>{formatFee(plan.emergencyFeeBps)}</Td>
+              <Td className="text-xs text-[var(--ink-3)]">
+                {plan.onChainId ? `#${plan.onChainId}` : vaultLive ? "pending" : "—"}
+              </Td>
+              <Td>
+                <StatusPill on={plan.active} />
+              </Td>
+              <Td className="text-right">
+                <Pencil className="inline size-4 text-[var(--ink-3)]" />
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </AdminTable>
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const [local, setLocal] = useState(value);
-  return (
-    <label className="field">
-      <span className="label">{label}</span>
-      <input
-        value={local}
-        onChange={(e) => {
-          setLocal(e.target.value);
-          onChange(e.target.value);
-        }}
-      />
-    </label>
+      <AdminModal
+        open={open}
+        onOpenChange={(next) => !next && close()}
+        title={creating ? "New bearing" : `Edit ${editing?.name ?? "bearing"}`}
+        description={
+          vaultLive
+            ? "APY and exit fee are percentages. Lock length is in days. Saving pushes updatePlan to the vault."
+            : "APY and exit fee are percentages. Lock length is in days."
+        }
+        onSubmit={submit}
+        busy={busy}
+        submitLabel={creating ? "Create bearing" : "Save bearing"}
+      >
+        {creating && (
+          <AdminField label="Slug" hint="Used in URLs. Lowercase, no spaces.">
+            <input value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} required />
+          </AdminField>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <AdminField label="Name">
+            <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
+          </AdminField>
+          <AdminField label="Lock (days)">
+            <input value={draft.lockDays} onChange={(e) => setDraft({ ...draft, lockDays: e.target.value })} />
+          </AdminField>
+          <AdminField label="APY %" hint="8 means 8% APY">
+            <input value={draft.apy} onChange={(e) => setDraft({ ...draft, apy: e.target.value })} />
+          </AdminField>
+          <AdminField label="Early exit %">
+            <input value={draft.emergencyFee} onChange={(e) => setDraft({ ...draft, emergencyFee: e.target.value })} />
+          </AdminField>
+          <AdminField label="Min USD">
+            <input value={draft.minUsd} onChange={(e) => setDraft({ ...draft, minUsd: e.target.value })} />
+          </AdminField>
+          <AdminField label="Max USD">
+            <input value={draft.maxUsd} onChange={(e) => setDraft({ ...draft, maxUsd: e.target.value })} />
+          </AdminField>
+        </div>
+        <AdminField label="Tagline">
+          <input value={draft.tagline} onChange={(e) => setDraft({ ...draft, tagline: e.target.value })} />
+        </AdminField>
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-2)]">
+          <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} />
+          Visible to users
+        </label>
+        {vaultLive && !creating ? (
+          <p className="text-xs text-[var(--ink-3)]">
+            Existing position cards keep the APY, lock, and exit fee they minted with. Only new locks pick up this edit.
+          </p>
+        ) : null}
+      </AdminModal>
+    </AdminPage>
   );
 }

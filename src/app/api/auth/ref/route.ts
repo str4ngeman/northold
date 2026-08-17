@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { BRAND } from "@/lib/brand";
+
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as { code?: string };
   const code = body.code?.trim().toLowerCase();
@@ -7,7 +9,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing code" }, { status: 400 });
   }
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("leagueto_ref", code, {
+  res.cookies.set(BRAND.cookies.referral, code, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
