@@ -15,10 +15,17 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     labels:
       - traefik.enable=true
-      - traefik.http.routers.other-app.rule=Host(`northold.app`)
-      - traefik.http.routers.other-app.entrypoints=websecure
-      - traefik.http.routers.other-app.tls.certresolver=letsencrypt
-      - traefik.http.services.other-app.loadbalancer.server.port=3000
+      - traefik.docker.network=web
+      - traefik.http.routers.northold.rule=Host(`northold.app`)
+      - traefik.http.routers.northold.entrypoints=websecure
+      - traefik.http.routers.northold.tls=true
+      - traefik.http.routers.northold.tls.certresolver=letsencrypt
+      - traefik.http.routers.northold.service=northold
+      - traefik.http.services.northold.loadbalancer.server.port=3000
+      - traefik.http.routers.northold-http.rule=Host(`northold.app`)
+      - traefik.http.routers.northold-http.entrypoints=web
+      - traefik.http.routers.northold-http.middlewares=northold-https
+      - traefik.http.middlewares.northold-https.redirectscheme.scheme=https
 
 networks:
   web:
