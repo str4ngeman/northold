@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { json, requireAdmin } from "@/lib/api-guard";
-import {
-  deactivatePlanOnChain,
-  decodeChainError,
-  loadLiveProtocol,
-  rememberPlanId,
-  syncPlanToChain,
-} from "@/lib/lab/chain-write";
+import { loadLiveProtocol, rememberPlanId } from "@/lib/lab/chain-write";
 import { validatePlanInput, type SeedPlan } from "@/lib/lab/plan-codec";
 import { Plan } from "@/lib/models/plan";
 
@@ -38,17 +32,9 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
   const protocol = await loadLiveProtocol();
-  let chainAction: "add" | "update" | "skipped" = "skipped";
-  let onChainId = current.onChainId as number | undefined;
-  if (protocol) {
-    try {
-      const synced = await syncPlanToChain(seed);
-      chainAction = synced.action;
-      onChainId = synced.planId;
-    } catch (err) {
-      return NextResponse.json({ error: decodeChainError(err) }, { status: 502 });
-    }
-  }
+  const onChainId =
+    typeof body.onChainId === "number" && body.onChainId > 0 ? body.onChainId : (current.onChainId as number | undefined);
+  if (protocol && onChainId) await rememberPlanId(current.slug, onChainId);
 
   const plan = await Plan.findByIdAndUpdate(
     id,
@@ -68,7 +54,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     { new: true },
   );
   if (!plan) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return json({ plan, chain: chainAction });
+  return json({ plan, vaultLive: Boolean(protocol) });
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
@@ -79,24 +65,10 @@ export async function DELETE(_request: Request, ctx: Ctx) {
   if (!plan) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const protocol = await loadLiveProtocol();
-  if (protocol) {
-    try {
-      await deactivatePlanOnChain(plan.slug, {
-        slug: plan.slug,
-        lockSeconds: plan.lockSeconds,
-        minUsd: plan.minUsd,
-        maxUsd: plan.maxUsd,
-        apyBps: plan.apyBps,
-        emergencyFeeBps: plan.emergencyFeeBps,
-        active: false,
-      });
-      if (plan.onChainId) await rememberPlanId(plan.slug, plan.onChainId);
-    } catch (err) {
-      return NextResponse.json({ error: decodeChainError(err) }, { status: 502 });
-    }
+  if (protocol && plan.onChainId) {
     plan.active = false;
     await plan.save();
-    return json({ ok: true, deactivated: true });
+    return json({ ok: true, deactivated: true, vaultLive: true });
   }
 
   await Plan.findByIdAndDelete(id);

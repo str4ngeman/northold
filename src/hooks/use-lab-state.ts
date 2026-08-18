@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type LabState = {
-  anvil: { running: boolean; pid: number | null };
   network?: {
-    id: "anvil" | "sepolia" | "mainnet";
+    id: "sepolia" | "mainnet";
     name: string;
     shortLabel: string;
     mode: "lab" | "test" | "live";

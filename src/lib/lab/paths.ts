@@ -2,12 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export { ANVIL_RPC } from "@/lib/lab/accounts";
-
 export const repoRoot = process.cwd();
 export const contractsRoot = path.join(repoRoot, "contracts");
 export const deploymentsDir = path.join(contractsRoot, "deployments");
-export const pidFile = path.join(repoRoot, ".anvil.pid");
 export const foundryBin = path.join(os.homedir(), ".foundry", "bin");
 
 export const LAB_COMMANDS = [
@@ -17,10 +14,7 @@ export const LAB_COMMANDS = [
   "coverage",
   "audit",
   "deploy",
-  "anvil",
-  "warp",
   "time",
-  "sim",
   "monitor",
   "wallet",
   "catalog",
@@ -51,25 +45,21 @@ export function loadArtifact(contract: string, file = `${contract}.sol`) {
   if (!fs.existsSync(p)) {
     throw new Error(`Missing ${contract} artifact. Run build from the lab.`);
   }
-  return JSON.parse(fs.readFileSync(p, "utf8")) as { abi: unknown[] };
+  return JSON.parse(fs.readFileSync(p, "utf8")) as {
+    abi: unknown[];
+    bytecode: { object: `0x${string}` } | `0x${string}`;
+  };
+}
+
+export function bytecodeOf(artifact: ReturnType<typeof loadArtifact>): `0x${string}` {
+  const b = artifact.bytecode;
+  return (typeof b === "string" ? b : b.object) as `0x${string}`;
 }
 
 export function readDeployment(chainId: number): Deployment | null {
   const p = path.join(deploymentsDir, `${chainId}.json`);
   if (!fs.existsSync(p)) return null;
   return JSON.parse(fs.readFileSync(p, "utf8")) as Deployment;
-}
-
-export function anvilPid(): { running: boolean; pid: number | null } {
-  if (!fs.existsSync(pidFile)) return { running: false, pid: null };
-  const pid = Number(fs.readFileSync(pidFile, "utf8").trim());
-  if (!pid) return { running: false, pid: null };
-  try {
-    process.kill(pid, 0);
-    return { running: true, pid };
-  } catch {
-    return { running: false, pid };
-  }
 }
 
 export function stripAnsi(text: string) {

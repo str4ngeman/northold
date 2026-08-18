@@ -5,6 +5,7 @@ import { readDeployment, type Deployment } from "@/lib/lab/paths";
 import { Settings } from "@/lib/models/settings";
 import { Plan } from "@/lib/models/plan";
 import {
+  DEFAULT_NETWORK_ID,
   NETWORKS,
   defaultTokenMap,
   emptyProfile,
@@ -43,6 +44,7 @@ type SettingsDoc = {
   lensAddress?: string;
   protocolPlans?: Record<string, number>;
   nextTokenId?: number;
+  deployerAddress?: string;
   networks?: Partial<Record<NetworkId, NetworkProfile>>;
 };
 
@@ -107,7 +109,7 @@ function tokensFrom(id: NetworkId, profile: NetworkProfile): NetworkTokenMap {
 
 function migrateLegacy(settings: SettingsDoc): Partial<Record<NetworkId, NetworkProfile>> {
   const networks = { ...(settings.networks ?? {}) };
-  const guessed = settings.chainId ? networkIdFromChainId(settings.chainId) : "anvil";
+  const guessed = settings.chainId ? networkIdFromChainId(settings.chainId) : DEFAULT_NETWORK_ID;
   const current = networks[guessed];
   if (!current?.vaultAddress && settings.vaultAddress) {
     networks[guessed] = mergeProfile(guessed, {
@@ -135,6 +137,7 @@ function legacyMirror(id: NetworkId, profile: NetworkProfile) {
     lensAddress: profile.lensAddress || "",
     protocolPlans: profile.protocolPlans ?? {},
     nextTokenId: profile.nextTokenId || 1,
+    deployerAddress: profile.deployerAddress || "",
   };
 }
 
@@ -147,12 +150,12 @@ export async function getActiveNetworkId(): Promise<NetworkId> {
   const settings = (await loadSettingsDoc()) as SettingsDoc | null;
   if (isNetworkId(settings?.activeNetwork)) return settings.activeNetwork;
   if (settings?.chainId) return networkIdFromChainId(settings.chainId);
-  return "anvil";
+  return DEFAULT_NETWORK_ID;
 }
 
 export async function getRuntimeNetwork(id?: NetworkId): Promise<RuntimeNetwork> {
   const settings = (await loadSettingsDoc()) as SettingsDoc | null;
-  const active = id ?? (isNetworkId(settings?.activeNetwork) ? settings.activeNetwork : undefined) ?? (settings?.chainId ? networkIdFromChainId(settings.chainId) : "anvil");
+  const active = id ?? (isNetworkId(settings?.activeNetwork) ? settings.activeNetwork : undefined) ?? (settings?.chainId ? networkIdFromChainId(settings.chainId) : DEFAULT_NETWORK_ID);
   const networks = migrateLegacy(settings ?? {});
   const profile = mergeProfile(active, networks[active]);
   const def = NETWORKS[active];
@@ -269,7 +272,7 @@ export function deploymentFromRuntime(runtime: RuntimeNetwork): Deployment | nul
   return {
     chainId: runtime.chainId,
     rpc: runtime.rpcUrl,
-    deployer: "0x0000000000000000000000000000000000000000",
+    deployer: (runtime.profile.deployerAddress as Address) || "0x0000000000000000000000000000000000000000",
     timestamp: Date.now(),
     contracts: {
       vault: protocol.vault,
@@ -294,6 +297,7 @@ export function publicNetworkView(runtime: RuntimeNetwork) {
     chainId: runtime.chainId,
     rpcUrl: runtime.rpcUrl,
     explorerUrl: runtime.explorerUrl,
+    deployerAddress: runtime.profile.deployerAddress || "",
     capabilities: runtime.capabilities,
   };
 }

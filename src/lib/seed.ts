@@ -16,12 +16,16 @@ export async function seedDatabase() {
       key: "app",
       siteName: process.env.NEXT_PUBLIC_APP_NAME || BRAND.name,
       tagline: BRAND.tagline,
-      rewardSymbol: "USDT",
+      rewardSymbol: "asset",
       referralBps: 500,
       supportEnabled: true,
       nextTokenId: 1,
-      activeNetwork: "anvil",
+      activeNetwork: "sepolia",
       networks: {
+        sepolia: {
+          chainId: 11155111,
+          rpcUrl: process.env.SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "",
+        },
         mainnet: {
           chainId: 1,
           rpcUrl: process.env.MAINNET_RPC_URL || process.env.NEXT_PUBLIC_MAINNET_RPC_URL || "",
@@ -133,14 +137,16 @@ export async function seedDatabase() {
 }
 
 async function alignBrand() {
+  await Settings.updateMany({ activeNetwork: "anvil" }, { $set: { activeNetwork: "sepolia" } });
   await Settings.updateMany(
     { siteName: { $in: ["Leagueto", "leagueto"] } },
     { $set: { siteName: process.env.NEXT_PUBLIC_APP_NAME || BRAND.name, tagline: BRAND.tagline } },
   );
   await Settings.updateMany(
-    { tagline: "The card is the stake." },
+    { tagline: { $in: ["The card is the stake.", "Hold north. Collect USDT."] } },
     { $set: { tagline: BRAND.tagline } },
   );
+  await Settings.updateMany({ rewardSymbol: "USDT" }, { $set: { rewardSymbol: "asset" } });
 
   const previous = [
     { slug: "pulse", names: ["Pulse"] },

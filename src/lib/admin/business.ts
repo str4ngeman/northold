@@ -10,7 +10,7 @@ import { loadLiveProtocol, type LiveProtocol } from "@/lib/lab/chain-write";
 import { loadArtifact, readDeployment } from "@/lib/lab/paths";
 import { mapPlan, mapToken } from "@/lib/map-catalog";
 import { mapPosition } from "@/lib/map-position";
-import { buildPositionView, projectedUsdt } from "@/lib/math";
+import { buildPositionView, projectedUsd } from "@/lib/math";
 import { Thread } from "@/lib/models/chat";
 import { Plan } from "@/lib/models/plan";
 import { Position } from "@/lib/models/position";
@@ -91,10 +91,6 @@ function usd8(n: bigint) {
   return Number(n) / 1e8;
 }
 
-function usdt(n: bigint) {
-  return Number(formatUnits(n, 6));
-}
-
 async function people() {
   const [users, wallets, admins, banned, referred, openSupport] = await Promise.all([
     User.countDocuments({ role: "user" }),
@@ -143,12 +139,15 @@ async function fromMongo(): Promise<BusinessReport> {
   const unlocked = views.filter((v) => v.status === "unlocked");
   const investedUsd = views.reduce((s, v) => s + v.principalUsd, 0);
   const lockedUsd = locked.reduce((s, v) => s + v.principalUsd, 0);
-  const accrued = views.reduce((s, v) => s + v.accruedUsdt, 0);
-  const claimed = views.reduce((s, v) => s + v.claimedUsdt, 0);
-  const claimable = views.reduce((s, v) => s + v.claimableUsdt, 0);
-  const forfeited = emergency.reduce((s, v) => s + Math.max(0, v.accruedUsdt - v.claimedUsdt), 0);
+  const accrued = views.reduce((s, v) => s + v.accruedUsd, 0);
+  const claimed = views.reduce((s, v) => s + v.claimedReward * v.token.priceUsd, 0);
+  const claimable = views.reduce((s, v) => s + v.claimableUsd, 0);
+  const forfeited = emergency.reduce(
+    (s, v) => s + Math.max(0, (v.accruedReward - v.claimedReward) * v.token.priceUsd),
+    0,
+  );
   const remaining = locked.reduce(
-    (s, v) => s + Math.max(0, projectedUsdt(v.principalUsd, v.plan.apyBps, v.plan.lockSeconds) - v.accruedUsdt),
+    (s, v) => s + Math.max(0, projectedUsd(v.principalUsd, v.plan.apyBps, v.plan.lockSeconds) - v.accruedUsd),
     0,
   );
 
@@ -166,7 +165,7 @@ async function fromMongo(): Promise<BusinessReport> {
       name: plan.name,
       cards: set.length,
       lockedUsd: set.filter((v) => v.status === "locked").reduce((s, v) => s + v.principalUsd, 0),
-      claimableUsdt: set.reduce((s, v) => s + v.claimableUsdt, 0),
+      claimableUsdt: set.reduce((s, v) => s + v.claimableUsd, 0),
       apyBps: plan.apyBps,
     };
   });
@@ -230,9 +229,9 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
     rpcUrls: { default: { http: [protocol.rpcUrl] } },
   };
   const pc = createPublicClient({ chain, transport: http(protocol.rpcUrl) });
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
-  const lensAbi = loadArtifact("LeagueLens").abi as Abi;
-  const oracleAbi = loadArtifact("LeagueOracle").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
+  const lensAbi = loadArtifact("NortholdLens").abi as Abi;
+  const oracleAbi = loadArtifact("NortholdOracle").abi as Abi;
   const tokens: { symbol: string; address: Address; decimals: number }[] = [
     { symbol: "USDT", address: (protocol.usdt ?? file?.contracts.usdt) as Address, decimals: 6 },
     { symbol: "USDC", address: (protocol.usdc ?? file?.contracts.usdc) as Address, decimals: 6 },
@@ -247,8 +246,6 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
       functionName: "snapshot",
     }) as Promise<{
       nextTokenId: bigint;
-      rewardBalance: bigint;
-      rewardDecimals: number;
       referralBps: number;
       depositsPaused: boolean;
       exitsPaused: boolean;
@@ -264,6 +261,18 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
   ]);
 
   const nextId = Number(snap.nextTokenId);
+  const priceReads = await Promise.all(
+    tokens.map(
+      (t) =>
+        pc.readContract({
+          address: protocol.oracle,
+          abi: oracleAbi,
+          functionName: "priceUsd",
+          args: [t.address],
+        }) as Promise<bigint>,
+    ),
+  );
+  const priceByAddr = new Map(tokens.map((t, i) => [t.address.toLowerCase(), usd8(priceReads[i] ?? 0n)]));
   const ids = Array.from({ length: Math.max(0, Math.min(nextId - 1, 2000)) }, (_, i) => i + 1);
   const viewsRaw = ids.length
     ? await pc.multicall({
@@ -299,6 +308,7 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
     const p = item.result as {
       tokenId: bigint;
       owner: Address;
+      asset: Address;
       principalUsd8: bigint;
       planSlug: `0x${string}`;
       lockSeconds: number;
@@ -313,6 +323,9 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
       startedAt: bigint;
     };
     if (!p.startedAt) continue;
+    const token = tokens.find((t) => t.address.toLowerCase() === p.asset.toLowerCase());
+    const toUsd = (qty: bigint) =>
+      token ? Number(formatUnits(qty, token.decimals)) * (priceByAddr.get(token.address.toLowerCase()) ?? 0) : 0;
     rows.push({
       tokenId: Number(p.tokenId),
       owner: p.owner,
@@ -320,9 +333,9 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
       planSlug: slugFromBytes32(p.planSlug),
       apyBps: p.apyBps,
       lockSeconds: p.lockSeconds,
-      accrued: usdt(p.accruedReward),
-      claimed: usdt(p.claimedReward),
-      claimable: usdt(p.claimableReward),
+      accrued: toUsd(p.accruedReward),
+      claimed: toUsd(p.claimedReward),
+      claimable: toUsd(p.claimableReward),
       status: STATUS[p.status] ?? "locked",
       rarity: RARITY[p.rarity] ?? "common",
       sizeTier: TIER[p.sizeTier] ?? "spark",
@@ -338,10 +351,22 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
   const accrued = rows.reduce((s, r) => s + r.accrued, 0);
   const claimed = rows.reduce((s, r) => s + r.claimed, 0);
   const claimable = rows.reduce((s, r) => s + r.claimable, 0);
-  const treasuryUsdt = Number(formatUnits(snap.rewardBalance, snap.rewardDecimals));
+  const surplus = await Promise.all(
+    tokens.map(async (t) => {
+      const amount = (await pc.readContract({
+        address: vault,
+        abi: vaultAbi,
+        functionName: "available",
+        args: [t.address],
+      })) as bigint;
+      const qty = Number(formatUnits(amount, t.decimals));
+      return { symbol: t.symbol, amount: formatUnits(amount, t.decimals), usd: qty * (priceByAddr.get(t.address.toLowerCase()) ?? 0) };
+    }),
+  );
+  const treasuryUsdt = surplus.reduce((s, t) => s + t.usd, 0);
   const forfeited = emergency.reduce((s, r) => s + Math.max(0, r.accrued - r.claimed), 0);
   const remaining = locked.reduce((s, r) => {
-    const cap = projectedUsdt(r.principalUsd, r.apyBps, r.lockSeconds);
+    const cap = projectedUsd(r.principalUsd, r.apyBps, r.lockSeconds);
     return s + Math.max(0, cap - r.accrued);
   }, 0);
 
@@ -404,29 +429,29 @@ async function fromChain(protocol: LiveProtocol): Promise<BusinessReport> {
       const args = (log.args ?? {}) as Record<string, unknown>;
       const tokenId = args.tokenId != null ? Number(args.tokenId as bigint) : undefined;
       if (log.eventName === "Claimed") {
-        cash.couponPaidUsdt += usdt((args.paid as bigint) ?? BigInt(0));
-        cash.referralPaidUsdt += usdt((args.referralPaid as bigint) ?? BigInt(0));
-        activity.push({ event: "Claim", tokenId, detail: `${usdt((args.paid as bigint) ?? BigInt(0)).toFixed(2)} USDT paid` });
+        activity.push({ event: "Claim", tokenId, detail: "Coupon paid in the held token" });
       } else if (log.eventName === "Unlocked") {
-        cash.couponPaidUsdt += usdt((args.rewardPaid as bigint) ?? BigInt(0));
-        activity.push({ event: "Unlock", tokenId, detail: "Principal returned" });
+        activity.push({ event: "Unlock", tokenId, detail: "Principal and coupon returned in the held token" });
       } else if (log.eventName === "EmergencyExited") {
         activity.push({ event: "Early exit", tokenId, detail: "Fee taken, unclaimed coupon forfeited" });
       } else if (log.eventName === "Minted") {
         activity.push({
           event: "Mint",
           tokenId,
-          detail: `${usd8((args.principalUsd8 as bigint) ?? BigInt(0)).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} locked`,
+          detail: `${usd8((args.principalUsd8 as bigint) ?? 0n).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} locked`,
         });
       } else if (log.eventName === "RewardsFunded") {
-        cash.rewardsFundedUsdt += usdt((args.amount as bigint) ?? BigInt(0));
-        activity.push({ event: "Treasury in", detail: `+${usdt((args.amount as bigint) ?? BigInt(0)).toFixed(0)} USDT` });
+        const tokenAddr = String(args.token ?? "").toLowerCase();
+        const t = tokens.find((item) => item.address.toLowerCase() === tokenAddr);
+        const qty = t ? Number(formatUnits((args.amount as bigint) ?? 0n, t.decimals)) : 0;
+        cash.rewardsFundedUsdt += qty * (priceByAddr.get(tokenAddr) ?? 0);
+        activity.push({ event: "Treasury in", detail: `+${qty.toLocaleString()} ${t?.symbol ?? "token"}` });
       }
     }
   } catch {
-    cash.couponPaidUsdt = claimed;
+    /* activity is optional */
   }
-  if (!cash.couponPaidUsdt) cash.couponPaidUsdt = claimed;
+  cash.couponPaidUsdt = claimed;
 
   return {
     source: "chain",

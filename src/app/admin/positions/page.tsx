@@ -90,7 +90,7 @@ export default function AdminPositions() {
             <Item label="Plan" value={active.planId} />
             <Item label="Amount" value={String(active.principalAmount)} />
             <Item label="Status" value={STATUS_LABEL[active.status] ?? active.status} />
-            <Item label="Claimed USDT" value={String(active.claimedUsdt)} />
+            <Item label="Claimed yield" value={String(active.claimedReward)} />
           </dl>
         )}
       </AdminModal>

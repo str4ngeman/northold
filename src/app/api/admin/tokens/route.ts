@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { json, requireAdmin } from "@/lib/api-guard";
-import {
-  decodeChainError,
-  loadLiveProtocol,
-  setAssetOnChain,
-  setOraclePriceOnChain,
-} from "@/lib/lab/chain-write";
+import { loadLiveProtocol } from "@/lib/lab/chain-write";
 import { bindAddress } from "@/lib/lab/live-tokens";
 import { Token } from "@/lib/models/token";
 import { getRuntimeNetwork, saveNetworkTokens } from "@/lib/network-store";
@@ -62,14 +57,5 @@ export async function POST(request: NextRequest) {
     [token.slug]: { address: token.address as `0x${string}`, decimals: token.decimals },
   });
   const protocol = await loadLiveProtocol();
-  if (protocol) {
-    try {
-      await setAssetOnChain(token.address, token.active !== false);
-      await setOraclePriceOnChain(token.address, priceUsd);
-    } catch (err) {
-      await Token.findByIdAndDelete(token._id);
-      return NextResponse.json({ error: decodeChainError(err) }, { status: 502 });
-    }
-  }
-  return json({ token, chain: protocol ? "updated" : "skipped" }, 201);
+  return json({ token, vaultLive: Boolean(protocol) }, 201);
 }

@@ -9,7 +9,7 @@ import {
   type Chain,
 } from "viem";
 
-import { anvilPid, loadArtifact, readDeployment, type Deployment } from "@/lib/lab/paths";
+import { loadArtifact, readDeployment, type Deployment } from "@/lib/lab/paths";
 import { deploymentFromRuntime, getRuntimeNetwork } from "@/lib/network-store";
 import { viemChain, type NetworkId } from "@/lib/networks";
 
@@ -40,9 +40,7 @@ function assetMeta(d: Deployment, addr: string) {
 
 export async function getLabState() {
   const runtime = await getRuntimeNetwork();
-  const anvil = anvilPid();
   const state: {
-    anvil: { running: boolean; pid: number | null };
     network: {
       id: NetworkId;
       name: string;
@@ -59,7 +57,6 @@ export async function getLabState() {
     time?: { unix: number; iso: string };
     deployment: Deployment | null;
   } = {
-    anvil,
     network: {
       id: runtime.id,
       name: runtime.name,
@@ -102,8 +99,8 @@ export async function getCatalog() {
   }
   const d = state.deployment;
   const pc = client(d.rpc || state.rpc, state.network.id);
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
-  const oracleAbi = loadArtifact("LeagueOracle").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
+  const oracleAbi = loadArtifact("NortholdOracle").abi as Abi;
   const count = (await pc.readContract({
     address: d.contracts.vault,
     abi: vaultAbi,
@@ -167,8 +164,8 @@ export async function getSnapshot() {
   }
   const d = state.deployment;
   const pc = client(d.rpc || state.rpc, state.network.id);
-  const lensAbi = loadArtifact("LeagueLens").abi as Abi;
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
+  const lensAbi = loadArtifact("NortholdLens").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
   const snap = (await pc.readContract({
     address: d.contracts.lens,
     abi: lensAbi,
@@ -176,8 +173,6 @@ export async function getSnapshot() {
   })) as {
     nextTokenId: bigint;
     planCount: bigint;
-    rewardBalance: bigint;
-    rewardDecimals: number;
     referralBps: number;
     depositsPaused: boolean;
     exitsPaused: boolean;
@@ -207,13 +202,29 @@ export async function getSnapshot() {
     }),
   );
 
+  const surplus = await Promise.all(
+    tokens.map(async (token) => {
+      const amount = (await pc.readContract({
+        address: d.contracts.vault,
+        abi: vaultAbi,
+        functionName: "available",
+        args: [token],
+      })) as bigint;
+      const meta = assetMeta(d, token);
+      return {
+        symbol: meta.symbol,
+        amount: formatUnits(amount, meta.decimals),
+      };
+    }),
+  );
+
   return {
     ok: true as const,
     state,
     snapshot: {
       cardsMinted: Math.max(0, Number(snap.nextTokenId) - 1),
       planCount: Number(snap.planCount),
-      rewardBalance: formatUnits(snap.rewardBalance, snap.rewardDecimals),
+      treasury: surplus,
       tvlUsd: usd8(tvl[0]),
       referralBps: snap.referralBps,
       depositsPaused: snap.depositsPaused,
@@ -259,8 +270,8 @@ export async function getWallet(address: Address) {
   }
   const d = state.deployment;
   const pc = client(d.rpc || state.rpc, state.network.id);
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
-  const lensAbi = loadArtifact("LeagueLens").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
+  const lensAbi = loadArtifact("NortholdLens").abi as Abi;
 
   const eth = await pc.getBalance({ address });
   const tokens = await Promise.all(
@@ -317,9 +328,9 @@ export async function getWallet(address: Address) {
       asset: asset.symbol,
       principal: formatUnits(p.principal, asset.decimals),
       principalUsd: usd8(p.principalUsd8),
-      accrued: formatUnits(p.accruedReward, 6),
-      claimed: formatUnits(p.claimedReward, 6),
-      claimable: formatUnits(p.claimableReward, 6),
+      accrued: formatUnits(p.accruedReward, asset.decimals),
+      claimed: formatUnits(p.claimedReward, asset.decimals),
+      claimable: formatUnits(p.claimableReward, asset.decimals),
       progressBps: Number(p.lockProgressBps),
       status: STATUS[p.status] ?? String(p.status),
       rarity: RARITY[p.rarity] ?? String(p.rarity),
@@ -354,7 +365,7 @@ export async function getRecentEvents(limit = 40) {
   }
   const d = state.deployment;
   const pc = client(d.rpc || state.rpc, state.network.id);
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
   const latest = await pc.getBlockNumber();
   const fromBlock = latest > BigInt(2000) ? latest - BigInt(2000) : BigInt(0);
   const logs = await pc.getContractEvents({

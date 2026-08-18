@@ -1,43 +1,43 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {LeagueLens} from "../src/LeagueLens.sol";
-import {LeagueMath} from "../src/libraries/LeagueMath.sol";
-import {LeagueVault} from "../src/LeagueVault.sol";
+import {NortholdLens} from "../src/NortholdLens.sol";
+import {NortholdMath} from "../src/libraries/NortholdMath.sol";
+import {NortholdVault} from "../src/NortholdVault.sol";
 import {Fixture} from "./Fixture.sol";
 
-contract LeagueVaultTest is Fixture {
+contract NortholdVaultTest is Fixture {
     function test_mintMintsNumberedCard() public {
         uint256 id = _mintUsdt(alice, pulseId, 1_000 * 1e6);
         assertEq(id, 1);
         assertEq(card.ownerOf(id), alice);
-        LeagueVault.Position memory pos = vault.positions(id);
+        NortholdVault.Position memory pos = vault.positions(id);
         assertEq(pos.principal, 1_000 * 1e6);
         assertEq(pos.principalUsd8, 1_000 * USD8);
         assertEq(pos.status, 0);
-        assertEq(pos.sizeTier, LeagueMath.TIER_VAULT);
-        assertEq(pos.rarity, LeagueMath.RARITY_COMMON);
+        assertEq(pos.sizeTier, NortholdMath.TIER_VAULT);
+        assertEq(pos.rarity, NortholdMath.RARITY_COMMON);
     }
 
     function test_mintRevertsBelowMin() public {
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.AmountOutOfRange.selector);
+        vm.expectRevert(NortholdVault.AmountOutOfRange.selector);
         vault.mint(address(usdt), pulseId, 50 * 1e6, address(0));
     }
 
     function test_mintRevertsAboveMax() public {
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.AmountOutOfRange.selector);
+        vm.expectRevert(NortholdVault.AmountOutOfRange.selector);
         vault.mint(address(usdt), pulseId, 20_000 * 1e6, address(0));
     }
 
     function test_wethPrincipalUsdAndTraits() public {
         vm.prank(alice);
         uint256 id = vault.mint(address(weth), apexId, 1 ether, address(0));
-        LeagueVault.Position memory pos = vault.positions(id);
+        NortholdVault.Position memory pos = vault.positions(id);
         assertEq(pos.principalUsd8, 3_500 * USD8);
-        assertEq(pos.sizeTier, LeagueMath.TIER_VAULT);
-        assertEq(pos.rarity, LeagueMath.RARITY_EPIC);
+        assertEq(pos.sizeTier, NortholdMath.TIER_VAULT);
+        assertEq(pos.rarity, NortholdMath.RARITY_EPIC);
     }
 
     function test_claimAfterTime() public {
@@ -50,14 +50,14 @@ contract LeagueVaultTest is Fixture {
         assertEq(paid, 80 * 1e6);
         assertEq(usdt.balanceOf(alice) - before, 80 * 1e6);
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.NothingToClaim.selector);
+        vm.expectRevert(NortholdVault.NothingToClaim.selector);
         vault.claim(id);
     }
 
     function test_unlockBeforeMaturityReverts() public {
         uint256 id = _mintUsdt(alice, pulseId, 1_000 * 1e6);
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.StillLocked.selector);
+        vm.expectRevert(NortholdVault.StillLocked.selector);
         vault.unlock(id);
     }
 
@@ -70,8 +70,8 @@ contract LeagueVaultTest is Fixture {
         assertEq(principal, 2_500 * 1e6);
         assertGt(coupon, 0);
         assertEq(usdt.balanceOf(alice), startBal + principal + coupon);
-        LeagueVault.Position memory pos = vault.positions(id);
-        assertEq(pos.status, LeagueMath.STATUS_UNLOCKED);
+        NortholdVault.Position memory pos = vault.positions(id);
+        assertEq(pos.status, NortholdMath.STATUS_UNLOCKED);
         assertEq(card.ownerOf(id), alice);
     }
 
@@ -95,7 +95,7 @@ contract LeagueVaultTest is Fixture {
         uint256 id = _mintUsdt(alice, pulseId, 1_000 * 1e6);
         vm.warp(block.timestamp + 30 days);
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.AlreadyMatured.selector);
+        vm.expectRevert(NortholdVault.AlreadyMatured.selector);
         vault.emergencyExit(id);
     }
 
@@ -106,7 +106,7 @@ contract LeagueVaultTest is Fixture {
         vm.warp(block.timestamp + 15 days);
 
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.NotCardOwner.selector);
+        vm.expectRevert(NortholdVault.NotCardOwner.selector);
         vault.claim(id);
 
         vm.prank(bob);
@@ -132,23 +132,36 @@ contract LeagueVaultTest is Fixture {
         vm.prank(owner);
         vault.setDepositsPaused(true);
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.DepositsPaused.selector);
+        vm.expectRevert(NortholdVault.DepositsPaused.selector);
         vault.mint(address(usdt), pulseId, 1_000 * 1e6, address(0));
     }
 
     function test_rescueCannotPullLocked() public {
         vm.prank(alice);
         vault.mint(address(weth), horizonId, 1 ether, address(0));
+        uint256 extra = vault.available(address(weth));
         vm.prank(owner);
-        vm.expectRevert(LeagueVault.InsufficientAvailable.selector);
-        vault.rescue(address(weth), 1, owner);
+        vm.expectRevert(NortholdVault.InsufficientAvailable.selector);
+        vault.rescue(address(weth), extra + 1, owner);
+    }
+
+    function test_wethEarnsWeth() public {
+        uint256 yearId = _yearPlan();
+        vm.prank(alice);
+        uint256 id = vault.mint(address(weth), yearId, 1 ether, address(0));
+        vm.warp(block.timestamp + 31_557_600);
+        uint256 before = weth.balanceOf(alice);
+        vm.prank(alice);
+        (uint256 paid,) = vault.claim(id);
+        assertEq(paid, 0.08 ether);
+        assertEq(weth.balanceOf(alice) - before, 0.08 ether);
     }
 
     function test_lensPositionsOf() public {
         _mintUsdt(alice, pulseId, 1_000 * 1e6);
         vm.prank(alice);
         vault.mint(address(weth), horizonId, 1 ether, address(0));
-        LeagueLens.PositionView[] memory list = lens.positionsOf(alice);
+        NortholdLens.PositionView[] memory list = lens.positionsOf(alice);
         assertEq(list.length, 2);
         assertEq(list[0].owner, alice);
         assertTrue(list[1].principalUsd8 > 0);

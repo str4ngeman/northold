@@ -6,9 +6,9 @@ import { persist } from "zustand/middleware";
 import { MOCK_WALLET, NEXT_TOKEN_ID, getPlan, getToken } from "@/lib/dummy";
 import { BRAND } from "@/lib/brand";
 import {
-  accruedUsdt,
+  accruedReward,
   buildPositionView,
-  claimableUsdt,
+  claimableReward,
   elapsedSeconds,
   emergencyFeeAmount,
   principalUsd,
@@ -31,11 +31,11 @@ type VaultState = {
   disconnect: () => void;
   mint: (input: MintInput) => PositionNft;
   claim: (tokenId: number, now?: number) => number;
-  unlock: (tokenId: number, now?: number) => { principal: number; usdt: number };
+  unlock: (tokenId: number, now?: number) => { principal: number; reward: number };
   emergencyUnlock: (
     tokenId: number,
     now?: number,
-  ) => { returned: number; fee: number; forfeitedUsdt: number };
+  ) => { returned: number; fee: number; forfeited: number };
 };
 
 function requirePosition(positions: PositionNft[], tokenId: number) {
@@ -70,7 +70,7 @@ export const useVaultStore = create<VaultState>()(
           startedAt: Date.now(),
           rarity: rarityFrom(plan.lockSeconds, usd),
           sizeTier: sizeTierFromUsd(usd),
-          claimedUsdt: 0,
+          claimedReward: 0,
           status: "locked",
         };
         set({
@@ -84,20 +84,18 @@ export const useVaultStore = create<VaultState>()(
         if (position.status === "emergencyExited" || position.status === "unlocked") {
           throw new Error("This card is no longer accruing");
         }
-        const token = getToken(position.assetId);
         const plan = getPlan(position.planId);
-        const usd = principalUsd(position.principalAmount, token.priceUsd);
-        const accrued = accruedUsdt(
-          usd,
+        const accrued = accruedReward(
+          position.principalAmount,
           plan.apyBps,
           elapsedSeconds(position, plan.lockSeconds, now),
         );
-        const amount = claimableUsdt(accrued, position.claimedUsdt, position.status);
+        const amount = claimableReward(accrued, position.claimedReward, position.status);
         if (amount <= 0) throw new Error("Nothing to claim yet");
         set({
           positions: get().positions.map((item) =>
             item.tokenId === tokenId
-              ? { ...item, claimedUsdt: item.claimedUsdt + amount }
+              ? { ...item, claimedReward: item.claimedReward + amount }
               : item,
           ),
         });
@@ -109,20 +107,20 @@ export const useVaultStore = create<VaultState>()(
         const plan = getPlan(position.planId);
         const view = buildPositionView(position, token, plan, now);
         if (!view.isMatured) throw new Error("Lock is still active");
-        const usdt = view.claimableUsdt;
+        const reward = view.claimableReward;
         set({
           positions: get().positions.map((item) =>
             item.tokenId === tokenId
               ? {
                   ...item,
-                  claimedUsdt: item.claimedUsdt + usdt,
+                  claimedReward: item.claimedReward + reward,
                   status: "unlocked",
                   unlockedAt: now,
                 }
               : item,
           ),
         });
-        return { principal: position.principalAmount, usdt };
+        return { principal: position.principalAmount, reward };
       },
       emergencyUnlock: (tokenId, now = Date.now()) => {
         const position = requirePosition(get().positions, tokenId);
@@ -135,7 +133,7 @@ export const useVaultStore = create<VaultState>()(
         if (view.isMatured) throw new Error("This card is already matured — unlock normally");
         const fee = emergencyFeeAmount(position.principalAmount, plan.emergencyFeeBps);
         const returned = position.principalAmount - fee;
-        const forfeitedUsdt = view.claimableUsdt;
+        const forfeited = view.claimableReward;
         set({
           positions: get().positions.map((item) =>
             item.tokenId === tokenId
@@ -143,7 +141,7 @@ export const useVaultStore = create<VaultState>()(
               : item,
           ),
         });
-        return { returned, fee, forfeitedUsdt };
+        return { returned, fee, forfeited };
       },
     }),
     { name: BRAND.storage.hold },

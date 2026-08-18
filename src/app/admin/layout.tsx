@@ -18,6 +18,7 @@ import {
 
 import { Logo } from "@/components/brand/logo";
 import { NetworkBadge } from "@/components/network-badge";
+import { WalletButton } from "@/components/wallet-button";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,9 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
         <Logo className="mb-6" />
         <div className="mb-4 px-3">
           <NetworkBadge />
+        </div>
+        <div className="mb-4 px-3">
+          <WalletButton />
         </div>
         {LINKS.map((item) => (
           <Link

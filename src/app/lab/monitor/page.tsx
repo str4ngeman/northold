@@ -13,7 +13,7 @@ type Snapshot = {
   snapshot?: {
     cardsMinted: number;
     planCount: number;
-    rewardBalance: string;
+    treasury: { symbol: string; amount: string }[];
     tvlUsd: number;
     referralBps: number;
     depositsPaused: boolean;
@@ -70,7 +70,10 @@ export default function LabMonitorPage() {
           <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <LabStat label="TVL" value={formatUsd(s.tvlUsd)} />
             <LabStat label="Cards" value={s.cardsMinted} />
-            <LabStat label="Treasury" value={`${Number(s.rewardBalance).toLocaleString()} USDT`} />
+            <LabStat
+              label="Treasury"
+              value={s.treasury.map((row) => `${Number(row.amount).toLocaleString()} ${row.symbol}`).join(" · ") || "—"}
+            />
             <LabStat
               label="Pauses"
               value={s.depositsPaused || s.exitsPaused ? "On" : "Off"}

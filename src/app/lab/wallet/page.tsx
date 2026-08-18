@@ -5,7 +5,6 @@ import { useState } from "react";
 import { LabPage, LabStat } from "@/components/lab/ui";
 import { CtaButton } from "@/components/ui/cta-button";
 import { Surface } from "@/components/ui/surface";
-import { ANVIL_OWNER, ANVIL_USER } from "@/lib/lab/accounts";
 import { formatUsd } from "@/lib/format";
 
 type WalletRes = {
@@ -38,7 +37,7 @@ type WalletRes = {
 };
 
 export default function LabWalletPage() {
-  const [address, setAddress] = useState<string>(ANVIL_USER);
+  const [address, setAddress] = useState("");
   const [data, setData] = useState<WalletRes | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,14 +59,6 @@ export default function LabWalletPage() {
       title="Read a user's cards"
       body="Balances, vault allowances, referrer, and every position NFT with live coupon math."
     >
-      <div className="flex flex-wrap gap-2">
-        <CtaButton variant="ghost" className="h-10 px-4" onClick={() => { setAddress(ANVIL_USER); void analyze(ANVIL_USER); }}>
-          Anvil user
-        </CtaButton>
-        <CtaButton variant="ghost" className="h-10 px-4" onClick={() => { setAddress(ANVIL_OWNER); void analyze(ANVIL_OWNER); }}>
-          Deployer
-        </CtaButton>
-      </div>
       <div className="mt-4 flex max-w-2xl flex-col gap-3 sm:flex-row">
         <input
           value={address}
@@ -83,9 +74,8 @@ export default function LabWalletPage() {
 
       {w ? (
         <>
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <LabStat label="ETH" value={Number(w.eth).toFixed(4)} />
-            <LabStat label="Claimable" value={`${w.claimableTotal.toFixed(4)} USDT`} />
             <LabStat label="Cards" value={w.positions.length} hint={w.referrer ? `ref ${w.referrer.slice(0, 6)}…` : "no referrer"} />
           </div>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -129,7 +119,7 @@ export default function LabWalletPage() {
                     </div>
                     <div>
                       <p className="text-[var(--ink-3)]">Claimable</p>
-                      <p className="num text-[var(--gain)]">{p.claimable}</p>
+                      <p className="num text-[var(--gain)]">{p.claimable} {p.asset}</p>
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-[var(--ink-3)]">

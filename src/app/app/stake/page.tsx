@@ -19,7 +19,7 @@ import { useNow } from "@/hooks/use-now";
 import { useSession } from "@/hooks/use-session";
 import { useVaultTx } from "@/hooks/use-vault-tx";
 import { formatAddress, formatApy, formatFee, formatLock, formatTokenAmount, formatUsd } from "@/lib/format";
-import { buildPositionView, dailyUsdt, principalUsd, projectedUsdt, rarityFrom, sizeTierFromUsd } from "@/lib/math";
+import { buildPositionView, dailyReward, principalUsd, projectedReward, rarityFrom, sizeTierFromUsd } from "@/lib/math";
 import type { PositionNft } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -56,8 +56,8 @@ function StakeForm() {
   const amount = Number(amountInput);
   const usd = token && Number.isFinite(amount) && amount > 0 ? principalUsd(amount, token.priceUsd) : 0;
   const inRange = Boolean(plan && usd >= plan.minUsd && usd <= plan.maxUsd);
-  const earned = plan ? projectedUsdt(usd, plan.apyBps, plan.lockSeconds) : 0;
-  const daily = plan ? dailyUsdt(usd, plan.apyBps) : 0;
+  const earned = token && plan ? projectedReward(amount, plan.apyBps, plan.lockSeconds) : 0;
+  const daily = token && plan ? dailyReward(amount, plan.apyBps) : 0;
 
   const { data: rawBal, refetch: refetchBal } = useReadContract({
     address: token?.address,
@@ -83,7 +83,7 @@ function StakeForm() {
       startedAt: now,
       rarity: rarityFrom(plan.lockSeconds, usdValue),
       sizeTier: sizeTierFromUsd(usdValue),
-      claimedUsdt: 0,
+      claimedReward: 0,
       status: "locked",
     };
     return buildPositionView(nft, token, plan, now);
@@ -195,7 +195,7 @@ function StakeForm() {
         <p className="mt-2 max-w-xl text-sm text-[var(--ink-2)]">
           {onChain
             ? `MetaMask mints the position NFT on ${networkName}. Approve the token, then confirm the hold.`
-            : "The preview is the position you’ll own. USDT starts accruing the second it mints."}
+            : "The preview is the position you’ll own. Yield in this token starts the second it mints."}
         </p>
       </FadeIn>
 
@@ -203,7 +203,7 @@ function StakeForm() {
         <Surface className="mt-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-[var(--ink-2)]">
             {wallet
-              ? `Connected ${wallet.slice(0, 6)}…${wallet.slice(-4)} on ${networkName}.${canFaucet ? " Fund the Anvil mocks, then add the token in MetaMask." : " Use tokens that exist on this network."}`
+              ? `Connected ${wallet.slice(0, 6)}…${wallet.slice(-4)} on ${networkName}.${canFaucet ? " Fund Sepolia mocks, then add the token in MetaMask." : " Use tokens that exist on this network."}`
               : `Connect MetaMask on ${networkName} (chain ${catalog?.network.chainId}).`}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -295,12 +295,15 @@ function StakeForm() {
 
           {plan && usd > 0 && (
             <div className="mt-5 rounded-2xl bg-black/20 p-4">
-              <Hint text="Simple interest in USDT. It does not compound inside the lock.">
+              <Hint text="Simple interest in the token you lock. It does not compound inside the hold.">
                 <span className="text-xs uppercase tracking-wider text-[var(--ink-3)]">If you hold to the date</span>
               </Hint>
-              <p className="num mt-1 text-3xl font-semibold text-[var(--gain)]">{formatUsd(earned)} USDT</p>
+              <p className="num mt-1 text-3xl font-semibold text-[var(--gain)]">
+                {token ? formatTokenAmount(earned, token.symbol) : formatUsd(earned)}
+              </p>
               <p className="mt-1 text-sm text-[var(--ink-2)]">
-                {formatUsd(daily)} / day · early exit fee {formatFee(plan.emergencyFeeBps)}
+                {token ? `${formatTokenAmount(daily, token.symbol)} / day` : `${formatUsd(daily)} / day`} · early exit fee{" "}
+                {formatFee(plan.emergencyFeeBps)}
               </p>
             </div>
           )}

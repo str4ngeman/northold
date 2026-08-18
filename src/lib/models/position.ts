@@ -12,6 +12,7 @@ const positionSchema = new Schema(
     rarity: { type: String, required: true },
     sizeTier: { type: String, required: true },
     claimedUsdt: { type: Number, default: 0 },
+    claimedReward: { type: Number, default: 0 },
     status: {
       type: String,
       enum: ["locked", "matured", "unlocked", "emergencyExited"],

@@ -3,7 +3,8 @@ pragma solidity ^0.8.28;
 
 import {console2} from "forge-std/console2.sol";
 
-import {LeagueVault} from "../src/LeagueVault.sol";
+import {NortholdMath} from "../src/libraries/NortholdMath.sol";
+import {NortholdVault} from "../src/NortholdVault.sol";
 import {Fixture} from "./Fixture.sol";
 
 /// @dev Time-travel simulations of the three catalog locks.
@@ -35,17 +36,16 @@ contract TimeTravelTest is Fixture {
         uint256 id = vault.mint(address(weth), horizonId, 1 ether, address(0));
 
         vm.warp(t0 + 45 days);
-        LeagueVault.Position memory pos = vault.positions(id);
-        uint256 expectedHalf = (pos.principalUsd8 * pos.apyBps * 45 days * 1e6)
-            / (1e8 * 10_000 * 31_557_600);
+        NortholdVault.Position memory pos = vault.positions(id);
+        uint256 expectedHalf = NortholdMath.accruedReward(1 ether, pos.apyBps, 45 days);
         assertApproxEqAbs(vault.claimableOf(id), expectedHalf, 1);
 
         vm.warp(t0 + 90 days);
         uint256 wethBefore = weth.balanceOf(alice);
         vm.prank(alice);
-        (uint256 principal,) = vault.unlock(id);
+        (uint256 principal, uint256 coupon) = vault.unlock(id);
         assertEq(principal, 1 ether);
-        assertEq(weth.balanceOf(alice), wethBefore + 1 ether);
+        assertEq(weth.balanceOf(alice), wethBefore + 1 ether + coupon);
     }
 
     function test_sim_apexEmergencyThenCannotClaim() public {
@@ -55,7 +55,7 @@ contract TimeTravelTest is Fixture {
         vault.emergencyExit(id);
         assertEq(vault.claimableOf(id), 0);
         vm.prank(alice);
-        vm.expectRevert(LeagueVault.NotLocked.selector);
+        vm.expectRevert(NortholdVault.NotLocked.selector);
         vault.claim(id);
     }
 

@@ -35,7 +35,7 @@ export function staticAudit() {
     }
   }
 
-  const vaultPath = path.join(srcDir, "LeagueVault.sol");
+  const vaultPath = path.join(srcDir, "NortholdVault.sol");
   const vault = fs.existsSync(vaultPath) ? fs.readFileSync(vaultPath, "utf8") : "";
   const owners = [...vault.matchAll(/function (\w+)\([^)]*\)[^{]*onlyOwner/g)].map((m) => m[1]);
   const guards = {

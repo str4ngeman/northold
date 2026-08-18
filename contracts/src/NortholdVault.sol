@@ -8,15 +8,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {ILeagueVault} from "./interfaces/ILeagueVault.sol";
+import {INortholdVault} from "./interfaces/INortholdVault.sol";
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
-import {LeagueMath} from "./libraries/LeagueMath.sol";
+import {NortholdMath} from "./libraries/NortholdMath.sol";
 import {PositionCard} from "./PositionCard.sol";
 
-/// @title LeagueVault
-/// @notice Lock an ERC-20, mint a numbered position NFT, accrue a USDT coupon in open time.
+/// @title NortholdVault
+/// @notice Lock an ERC-20, mint a numbered position NFT, accrue a coupon in that same token.
 ///         Principal returns in the same tokens when the seal completes.
-contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
+contract NortholdVault is INortholdVault, Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct Plan {
@@ -52,8 +52,6 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     }
 
     PositionCard public immutable card;
-    IERC20 public immutable reward;
-    uint8 public immutable rewardDecimals;
     IPriceOracle public oracle;
 
     uint16 public referralBps = 500;
@@ -116,7 +114,7 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     event ReferralBpsSet(uint16 bps);
     event DepositsPauseSet(bool paused);
     event ExitsPauseSet(bool paused);
-    event RewardsFunded(address indexed from, uint256 amount);
+    event RewardsFunded(address indexed token, address indexed from, uint256 amount);
     event FeesWithdrawn(address indexed token, address indexed to, uint256 amount);
     event Rescued(address indexed token, address indexed to, uint256 amount);
 
@@ -125,10 +123,8 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
         _;
     }
 
-    constructor(address card_, address reward_, address oracle_, address owner_) Ownable(owner_) {
+    constructor(address card_, address oracle_, address owner_) Ownable(owner_) {
         card = PositionCard(card_);
-        reward = IERC20(reward_);
-        rewardDecimals = IERC20Metadata(reward_).decimals();
         oracle = IPriceOracle(oracle_);
     }
 
@@ -149,7 +145,7 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
         if (!a.configured) revert UnknownAsset();
         if (!a.active) revert InactiveAsset();
 
-        uint256 usd8 = LeagueMath.principalUsd8(amount, a.decimals, oracle.priceUsd(asset));
+        uint256 usd8 = NortholdMath.principalUsd8(amount, a.decimals, oracle.priceUsd(asset));
         if (usd8 < plan.minUsd8 || usd8 > plan.maxUsd8) revert AmountOutOfRange();
 
         if (referrer != address(0)) {
@@ -160,8 +156,8 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
         lockedPrincipal[asset] += amount;
 
         tokenId = nextTokenId++;
-        uint8 size = LeagueMath.sizeTier(usd8);
-        uint8 rar = LeagueMath.rarity(plan.lockSeconds, usd8);
+        uint8 size = NortholdMath.sizeTier(usd8);
+        uint8 rar = NortholdMath.rarity(plan.lockSeconds, usd8);
 
         _positions[tokenId] = Position({
             asset: asset,
@@ -176,7 +172,7 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
             emergencyFeeBps: plan.emergencyFeeBps,
             rarity: rar,
             sizeTier: size,
-            status: LeagueMath.STATUS_LOCKED
+            status: NortholdMath.STATUS_LOCKED
         });
 
         card.mint(msg.sender, tokenId);
@@ -190,24 +186,15 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
         returns (uint256 paid, uint256 referralPaid)
     {
         Position storage pos = _positions[tokenId];
-        if (pos.status != LeagueMath.STATUS_LOCKED) revert NotLocked();
+        if (pos.status != NortholdMath.STATUS_LOCKED) revert NotLocked();
 
         paid = _claimable(pos);
         if (paid == 0) revert NothingToClaim();
 
         pos.claimedReward += paid;
+        referralPaid = _payCoupon(pos.asset, msg.sender, paid);
 
-        address ref = referrerOf[msg.sender];
-        if (ref != address(0) && referralBps > 0) {
-            referralPaid = (paid * referralBps) / LeagueMath.BPS;
-        }
-
-        reward.safeTransfer(msg.sender, paid);
-        if (referralPaid > 0) {
-            reward.safeTransfer(ref, referralPaid);
-        }
-
-        emit Claimed(tokenId, msg.sender, paid, referralPaid, ref);
+        emit Claimed(tokenId, msg.sender, paid, referralPaid, referrerOf[msg.sender]);
     }
 
     function unlock(uint256 tokenId)
@@ -218,26 +205,24 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     {
         if (exitsPaused) revert ExitsPaused();
         Position storage pos = _positions[tokenId];
-        if (pos.status != LeagueMath.STATUS_LOCKED) revert NotLocked();
+        if (pos.status != NortholdMath.STATUS_LOCKED) revert NotLocked();
         if (block.timestamp < uint256(pos.startedAt) + pos.lockSeconds) revert StillLocked();
 
         rewardPaid = _claimable(pos);
         principal = pos.principal;
 
+        if (rewardPaid > 0) {
+            _requireAvailable(pos.asset, rewardPaid + _referralOn(msg.sender, rewardPaid));
+        }
+
         pos.claimedReward += rewardPaid;
-        pos.status = LeagueMath.STATUS_UNLOCKED;
+        pos.status = NortholdMath.STATUS_UNLOCKED;
         pos.unlockedAt = uint64(block.timestamp);
         lockedPrincipal[pos.asset] -= principal;
 
         IERC20(pos.asset).safeTransfer(msg.sender, principal);
         if (rewardPaid > 0) {
-            address ref = referrerOf[msg.sender];
-            uint256 referralPaid;
-            if (ref != address(0) && referralBps > 0) {
-                referralPaid = (rewardPaid * referralBps) / LeagueMath.BPS;
-            }
-            reward.safeTransfer(msg.sender, rewardPaid);
-            if (referralPaid > 0) reward.safeTransfer(ref, referralPaid);
+            _payCoupon(pos.asset, msg.sender, rewardPaid);
         }
 
         emit Unlocked(tokenId, msg.sender, principal, rewardPaid);
@@ -251,13 +236,13 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     {
         if (exitsPaused) revert ExitsPaused();
         Position storage pos = _positions[tokenId];
-        if (pos.status != LeagueMath.STATUS_LOCKED) revert NotLocked();
+        if (pos.status != NortholdMath.STATUS_LOCKED) revert NotLocked();
         if (block.timestamp >= uint256(pos.startedAt) + pos.lockSeconds) revert AlreadyMatured();
 
-        fee = LeagueMath.emergencyFee(pos.principal, pos.emergencyFeeBps);
+        fee = NortholdMath.emergencyFee(pos.principal, pos.emergencyFeeBps);
         returnedAmount = pos.principal - fee;
 
-        pos.status = LeagueMath.STATUS_EMERGENCY;
+        pos.status = NortholdMath.STATUS_EMERGENCY;
         pos.unlockedAt = uint64(block.timestamp);
         lockedPrincipal[pos.asset] -= pos.principal;
         protocolFees[pos.asset] += fee;
@@ -289,9 +274,7 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
 
     function accruedOf(uint256 tokenId) public view returns (uint256) {
         Position storage pos = _positions[tokenId];
-        return LeagueMath.accruedReward(
-            pos.principalUsd8, pos.apyBps, _elapsed(pos), rewardDecimals
-        );
+        return NortholdMath.accruedReward(pos.principal, pos.apyBps, _elapsed(pos));
     }
 
     function claimableOf(uint256 tokenId) public view returns (uint256) {
@@ -300,7 +283,7 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
 
     function isMatured(uint256 tokenId) public view returns (bool) {
         Position storage pos = _positions[tokenId];
-        if (pos.status != LeagueMath.STATUS_LOCKED) return false;
+        if (pos.status != NortholdMath.STATUS_LOCKED) return false;
         return block.timestamp >= uint256(pos.startedAt) + pos.lockSeconds;
     }
 
@@ -316,9 +299,9 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     {
         Plan memory plan = _plans[planId];
         Asset memory a = _assets[asset];
-        usd8 = LeagueMath.principalUsd8(amount, a.decimals, oracle.priceUsd(asset));
-        rar = LeagueMath.rarity(plan.lockSeconds, usd8);
-        size = LeagueMath.sizeTier(usd8);
+        usd8 = NortholdMath.principalUsd8(amount, a.decimals, oracle.priceUsd(asset));
+        rar = NortholdMath.rarity(plan.lockSeconds, usd8);
+        size = NortholdMath.sizeTier(usd8);
         inRange = plan.active && a.active && usd8 >= plan.minUsd8 && usd8 <= plan.maxUsd8;
     }
 
@@ -363,9 +346,15 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
         emit ExitsPauseSet(paused);
     }
 
-    function fundRewards(uint256 amount) external {
-        reward.safeTransferFrom(msg.sender, address(this), amount);
-        emit RewardsFunded(msg.sender, amount);
+    function available(address token) public view returns (uint256) {
+        uint256 reserved = lockedPrincipal[token] + protocolFees[token];
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        return bal > reserved ? bal - reserved : 0;
+    }
+
+    function fundRewards(address token, uint256 amount) external {
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        emit RewardsFunded(token, msg.sender, amount);
     }
 
     function withdrawFees(address token, uint256 amount, address to) external onlyOwner {
@@ -388,7 +377,7 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     function _elapsed(Position storage pos) internal view returns (uint256) {
         uint256 cap = uint256(pos.startedAt) + pos.lockSeconds;
         uint256 stop = block.timestamp;
-        if (pos.status != LeagueMath.STATUS_LOCKED) {
+        if (pos.status != NortholdMath.STATUS_LOCKED) {
             stop = pos.unlockedAt;
         }
         if (stop > cap) stop = cap;
@@ -397,10 +386,29 @@ contract LeagueVault is ILeagueVault, Ownable2Step, ReentrancyGuard {
     }
 
     function _claimable(Position storage pos) internal view returns (uint256) {
-        uint256 accrued = LeagueMath.accruedReward(
-            pos.principalUsd8, pos.apyBps, _elapsed(pos), rewardDecimals
-        );
-        return LeagueMath.claimable(accrued, pos.claimedReward, pos.status);
+        uint256 accrued = NortholdMath.accruedReward(pos.principal, pos.apyBps, _elapsed(pos));
+        return NortholdMath.claimable(accrued, pos.claimedReward, pos.status);
+    }
+
+    function _referralOn(address owner, uint256 paid) internal view returns (uint256) {
+        if (referrerOf[owner] == address(0) || referralBps == 0) return 0;
+        return (paid * referralBps) / NortholdMath.BPS;
+    }
+
+    function _requireAvailable(address token, uint256 amount) internal view {
+        if (amount > available(token)) revert InsufficientAvailable();
+    }
+
+    function _payCoupon(address token, address owner, uint256 paid) internal returns (uint256 referralPaid) {
+        address ref = referrerOf[owner];
+        if (ref != address(0) && referralBps > 0) {
+            referralPaid = _referralOn(owner, paid);
+        }
+        _requireAvailable(token, paid + referralPaid);
+        IERC20(token).safeTransfer(owner, paid);
+        if (referralPaid > 0) {
+            IERC20(token).safeTransfer(ref, referralPaid);
+        }
     }
 
     function _setReferrer(address user, address referrer) internal {

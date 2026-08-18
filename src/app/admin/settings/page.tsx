@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Pencil, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -8,6 +8,9 @@ import { AdminModal } from "@/components/admin/modal";
 import { AdminField, AdminPage, AdminTable, StatusPill, Td, Th } from "@/components/admin/ui";
 import { CtaButton } from "@/components/ui/cta-button";
 import { Surface } from "@/components/ui/surface";
+import { WalletButton } from "@/components/wallet-button";
+import { useOwnerTx } from "@/hooks/use-owner-tx";
+import { formatAddress } from "@/lib/format";
 import { explorerAddressUrl, NETWORKS, type NetworkId } from "@/lib/networks";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +42,7 @@ type NetworkState = {
   chainId: number;
   rpcUrl: string;
   explorerUrl: string;
+  deployerAddress?: string;
   protocol: {
     vault: string;
     card: string;
@@ -48,7 +52,7 @@ type NetworkState = {
   tokens: Record<string, { address: string; decimals: number }>;
 };
 
-const ORDER: NetworkId[] = ["anvil", "sepolia", "mainnet"];
+const ORDER: NetworkId[] = ["sepolia", "mainnet"];
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -58,7 +62,7 @@ export default function AdminSettings() {
   const [draft, setDraft] = useState<Settings>({
     siteName: "",
     tagline: "",
-    rewardSymbol: "USDT",
+    rewardSymbol: "asset",
     referralBps: 500,
     supportEnabled: true,
   });
@@ -66,11 +70,15 @@ export default function AdminSettings() {
   const [protocolDraft, setProtocolDraft] = useState({ vault: "", card: "", oracle: "", lens: "" });
   const [busy, setBusy] = useState(false);
   const [switching, setSwitching] = useState<NetworkId | null>(null);
+  const [release, setRelease] = useState<{ configured: boolean; image?: string } | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const ownerTx = useOwnerTx();
 
   async function load() {
-    const [settingsRes, networkRes] = await Promise.all([
+    const [settingsRes, networkRes, releaseRes] = await Promise.all([
       fetch("/api/admin/settings"),
       fetch("/api/admin/network"),
+      fetch("/api/admin/release"),
     ]);
     const settingsData = await settingsRes.json();
     const networkData = (await networkRes.json()) as { network?: NetworkState; networks?: NetworkSummary[] };
@@ -78,7 +86,7 @@ export default function AdminSettings() {
       const next = {
         siteName: settingsData.settings.siteName ?? "",
         tagline: settingsData.settings.tagline ?? "",
-        rewardSymbol: settingsData.settings.rewardSymbol ?? "USDT",
+        rewardSymbol: settingsData.settings.rewardSymbol ?? "asset",
         referralBps: settingsData.settings.referralBps ?? 500,
         supportEnabled: settingsData.settings.supportEnabled !== false,
       };
@@ -96,28 +104,56 @@ export default function AdminSettings() {
       });
     }
     setNetworks(networkData.networks ?? []);
+    const releaseData = (await releaseRes.json()) as { configured?: boolean; image?: string };
+    setRelease({ configured: Boolean(releaseData.configured), image: releaseData.image });
   }
 
   useEffect(() => {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (!ownerTx.address) return;
+    const id = window.setTimeout(() => void load(), 800);
+    return () => window.clearTimeout(id);
+  }, [ownerTx.address]);
+
   async function save() {
     setBusy(true);
-    const res = await fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
-    });
-    setBusy(false);
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      toast.error(data.error || "Save failed");
-      return;
+    try {
+      if (network?.protocol && settings && draft.referralBps !== settings.referralBps) {
+        await ownerTx.setReferralBps(draft.referralBps);
+      }
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      toast.success("Settings saved");
+      setOpen(false);
+      await ownerTx.refresh();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setBusy(false);
     }
-    toast.success("Settings saved");
-    setOpen(false);
-    await load();
+  }
+
+  async function pullRelease() {
+    setUpdating(true);
+    try {
+      const res = await fetch("/api/admin/release", { method: "POST" });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) throw new Error(data.error || "Update failed");
+      toast.success(data.message || "Pull started. The site may restart in a moment.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setUpdating(false);
+    }
   }
 
   async function switchNetwork(id: NetworkId) {
@@ -199,13 +235,33 @@ export default function AdminSettings() {
     <AdminPage
       kicker="Settings"
       title="Site configuration"
-      description="Test mode is Sepolia. Live mode is Ethereum. Anvil stays available for local lab work. Addresses are stored per network and are never overwritten by another chain."
+      description="The app runs on Sepolia. The connected MetaMask wallet is the deployer and is stored in the database. Lab deploy writes vault and token addresses here."
       action={
         <CtaButton className="h-11 px-5" onClick={() => settings && setOpen(true)}>
           <Pencil className="size-4" /> Edit
         </CtaButton>
       }
     >
+      <Surface className="mb-8 p-5">
+        <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Server</p>
+        <p className="mt-1 text-lg font-semibold">Pull latest image</p>
+        <p className="mt-1 text-sm text-[var(--ink-2)]">
+          Same as SSH <span className="font-mono text-xs">docker compose pull && docker compose up -d --force-recreate</span>.
+          New GHCR builds are also picked up automatically every five minutes.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <CtaButton disabled={updating || release?.configured === false} onClick={() => void pullRelease()}>
+            <RefreshCw className={`size-4 ${updating ? "animate-spin" : ""}`} />
+            {updating ? "Updating…" : "Update from GHCR"}
+          </CtaButton>
+          <StatusPill
+            on={Boolean(release?.configured)}
+            label={release?.configured ? "Watchtower ready" : "Watchtower not on this host"}
+          />
+        </div>
+        {release?.image ? <p className="mt-3 font-mono text-xs text-[var(--ink-3)]">{release.image}</p> : null}
+      </Surface>
+
       <div className="mb-8 grid gap-3 lg:grid-cols-3">
         {ORDER.map((id) => {
           const summary = networks.find((item) => item.id === id);
@@ -237,6 +293,26 @@ export default function AdminSettings() {
       </div>
 
       {network ? (
+        <>
+        <Surface className="mb-8 p-5">
+          <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Deployer</p>
+          <p className="mt-1 text-lg font-semibold font-mono">
+            {network.deployerAddress ? formatAddress(network.deployerAddress) : "Not saved yet"}
+          </p>
+          <p className="mt-1 text-sm text-[var(--ink-2)]">
+            {ownerTx.address
+              ? `Connected MetaMask ${formatAddress(ownerTx.address)}${
+                  network.deployerAddress && ownerTx.address.toLowerCase() === network.deployerAddress.toLowerCase()
+                    ? " — this is the saved owner"
+                    : " — connecting as admin saves this address"
+                }`
+              : "Connect MetaMask as admin. That wallet becomes the protocol owner in the database."}
+          </p>
+          <div className="mt-4">
+            <WalletButton />
+          </div>
+        </Surface>
+
         <Surface className="mb-8 p-5">
           <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Active network</p>
           <p className="mt-1 text-lg font-semibold">{network.name}</p>
@@ -280,7 +356,7 @@ export default function AdminSettings() {
                   open vault
                 </a>
               ) : (
-                "none on Anvil"
+                "no explorer"
               )}
             </p>
           ) : (
@@ -289,6 +365,7 @@ export default function AdminSettings() {
             </p>
           )}
         </Surface>
+        </>
       ) : null}
 
       <AdminTable>
@@ -327,10 +404,10 @@ export default function AdminSettings() {
         <AdminField label="Tagline">
           <input value={draft.tagline} onChange={(e) => setDraft({ ...draft, tagline: e.target.value })} />
         </AdminField>
-        <AdminField label="Reward symbol">
+        <AdminField label="Reward label" hint="Yield is always paid in the locked token. This is display-only.">
           <input value={draft.rewardSymbol} onChange={(e) => setDraft({ ...draft, rewardSymbol: e.target.value })} />
         </AdminField>
-        <AdminField label="Referral %" hint="5 means 5%.">
+        <AdminField label="Referral %" hint="5 means 5%. If a vault is live, MetaMask signs setReferralBps first.">
           <input
             value={String(draft.referralBps / 100)}
             onChange={(e) => setDraft({ ...draft, referralBps: Math.round(Number(e.target.value) * 100) })}

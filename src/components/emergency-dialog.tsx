@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatFee, formatTokenAmount, formatUsd } from "@/lib/format";
+import { formatFee, formatTokenAmount } from "@/lib/format";
 import { emergencyFeeAmount } from "@/lib/math";
 import type { PositionView } from "@/lib/types";
 
@@ -40,7 +40,7 @@ export function EmergencyDialog({
           <DialogTitle>Break the seal?</DialogTitle>
           <DialogDescription>
             Emergency unlock takes {formatFee(view.plan.emergencyFeeBps)} of principal.
-            Unclaimed USDT ({formatUsd(view.claimableUsdt)}) is forfeited. Already-claimed
+            Unclaimed {view.token.symbol} ({formatTokenAmount(view.claimableReward, view.token.symbol)}) is forfeited. Already-claimed
             yield stays in your wallet.
           </DialogDescription>
         </DialogHeader>
@@ -54,8 +54,8 @@ export function EmergencyDialog({
             <dd>{formatTokenAmount(fee, view.token.symbol)}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Forfeited USDT</dt>
-            <dd>{formatUsd(view.claimableUsdt)}</dd>
+            <dt className="text-muted-foreground">Forfeited yield</dt>
+            <dd>{formatTokenAmount(view.claimableReward, view.token.symbol)}</dd>
           </div>
         </dl>
         <DialogFooter>

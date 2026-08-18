@@ -152,8 +152,8 @@ export function cmdAudit() {
   console.log("\n== Contract sizes ==");
   runForge(["build", "--sizes"]);
 
-  console.log("\n== Storage layout (LeagueVault) ==");
-  const layout = captureForge(["inspect", "LeagueVault", "storage-layout"]);
+  console.log("\n== Storage layout (NortholdVault) ==");
+  const layout = captureForge(["inspect", "NortholdVault", "storage-layout"]);
   process.stdout.write(layout.stdout);
 
   console.log("\n== Pattern scan ==");
@@ -181,7 +181,7 @@ export function cmdAudit() {
   }
 
   console.log("\n== Privilege surface (onlyOwner) ==");
-  const vault = fs.readFileSync(path.join(srcDir, "LeagueVault.sol"), "utf8");
+  const vault = fs.readFileSync(path.join(srcDir, "NortholdVault.sol"), "utf8");
   const owners = [...vault.matchAll(/function (\w+)\([^)]*\)[^{]*onlyOwner/g)].map((m) => m[1]);
   console.log(" ", owners.join(", ") || "(none)");
 
@@ -285,10 +285,10 @@ export async function cmdDeploy(flags: Flags) {
     mintedMocks = true;
   }
 
-  const oracle = await deploy("LeagueOracle", [owner]);
+  const oracle = await deploy("NortholdOracle", [owner]);
   const card = await deploy("PositionCard", [owner]);
-  const vault = await deploy("LeagueVault", [card, usdt, oracle, owner]);
-  const lens = await deploy("LeagueLens", [vault]);
+  const vault = await deploy("NortholdVault", [card, oracle, owner]);
+  const lens = await deploy("NortholdLens", [vault]);
 
   const write = async (address: Address, name: string, fn: string, args: unknown[]) => {
     const art = loadArtifact(name);
@@ -308,17 +308,17 @@ export async function cmdDeploy(flags: Flags) {
   const seed = loadPlanSeed();
   console.log(`seeding ${seed.plans.length} plan(s) from ${seed.plans.map((p) => p.slug).join(", ")}`);
 
-  await write(oracle, "LeagueOracle", "setPrice", [usdt, usdToUsd8(seed.oracle.usdt ?? 1)]);
-  await write(oracle, "LeagueOracle", "setPrice", [usdc, usdToUsd8(seed.oracle.usdc ?? 1)]);
-  await write(oracle, "LeagueOracle", "setPrice", [weth, usdToUsd8(seed.oracle.weth ?? 3500)]);
-  await write(oracle, "LeagueOracle", "setPrice", [wbtc, usdToUsd8(seed.oracle.wbtc ?? 95_000)]);
+  await write(oracle, "NortholdOracle", "setPrice", [usdt, usdToUsd8(seed.oracle.usdt ?? 1)]);
+  await write(oracle, "NortholdOracle", "setPrice", [usdc, usdToUsd8(seed.oracle.usdc ?? 1)]);
+  await write(oracle, "NortholdOracle", "setPrice", [weth, usdToUsd8(seed.oracle.weth ?? 3500)]);
+  await write(oracle, "NortholdOracle", "setPrice", [wbtc, usdToUsd8(seed.oracle.wbtc ?? 95_000)]);
 
   for (const t of [usdt, usdc, weth, wbtc]) {
-    await write(vault, "LeagueVault", "setAsset", [t, true]);
+    await write(vault, "NortholdVault", "setAsset", [t, true]);
   }
 
   if (seed.referralBps >= 0 && seed.referralBps <= 2000) {
-    await write(vault, "LeagueVault", "setReferralBps", [seed.referralBps]);
+    await write(vault, "NortholdVault", "setReferralBps", [seed.referralBps]);
   }
 
   const planIds: { id: number; slug: string }[] = [];
@@ -326,7 +326,7 @@ export async function cmdDeploy(flags: Flags) {
     const slug = stringToBytes32(p.slug);
     const hash = await wallet.writeContract({
       address: vault,
-      abi: loadArtifact("LeagueVault").abi as Abi,
+      abi: loadArtifact("NortholdVault").abi as Abi,
       functionName: "addPlan",
       args: [
         {
@@ -345,7 +345,7 @@ export async function cmdDeploy(flags: Flags) {
     await publicClient.waitForTransactionReceipt({ hash });
     const id = await publicClient.readContract({
       address: vault,
-      abi: loadArtifact("LeagueVault").abi as Abi,
+      abi: loadArtifact("NortholdVault").abi as Abi,
       functionName: "planCount",
     });
     planIds.push({ id: Number(id), slug: p.slug });
@@ -354,27 +354,35 @@ export async function cmdDeploy(flags: Flags) {
 
   if (mintedMocks) {
     const mockAbi = loadArtifact("MockERC20", "MockERC20.sol").abi as Abi;
-    const mintHash = await wallet.writeContract({
-      address: usdt,
-      abi: mockAbi,
-      functionName: "mint",
-      args: [owner, parseUnits("10000000", 6)],
-      account: wallet.account!,
-      chain: wallet.chain,
-    });
-    await publicClient.waitForTransactionReceipt({ hash: mintHash });
-    const approveHash = await wallet.writeContract({
-      address: usdt,
-      abi: mockAbi,
-      functionName: "approve",
-      args: [vault, 2n ** 256n - 1n],
-      account: wallet.account!,
-      chain: wallet.chain,
-    });
-    await publicClient.waitForTransactionReceipt({ hash: approveHash });
-    await write(vault, "LeagueVault", "fundRewards", [parseUnits("5000000", 6)]);
+    const bags: { token: Address; decimals: number; mint: string; fund: string }[] = [
+      { token: usdt, decimals: 6, mint: "10000000", fund: "5000000" },
+      { token: usdc, decimals: 6, mint: "10000000", fund: "5000000" },
+      { token: weth, decimals: 18, mint: "1000", fund: "500" },
+      { token: wbtc, decimals: 8, mint: "50", fund: "25" },
+    ];
+    for (const bag of bags) {
+      const mintHash = await wallet.writeContract({
+        address: bag.token,
+        abi: mockAbi,
+        functionName: "mint",
+        args: [owner, parseUnits(bag.mint, bag.decimals)],
+        account: wallet.account!,
+        chain: wallet.chain,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: mintHash });
+      const approveHash = await wallet.writeContract({
+        address: bag.token,
+        abi: mockAbi,
+        functionName: "approve",
+        args: [vault, 2n ** 256n - 1n],
+        account: wallet.account!,
+        chain: wallet.chain,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      await write(vault, "NortholdVault", "fundRewards", [bag.token, parseUnits(bag.fund, bag.decimals)]);
+    }
   } else {
-    console.log("skipped mock mint / fundRewards — using existing tokens. Fund the vault USDT separately.");
+    console.log("skipped mock mint / fundRewards — using existing tokens. Fund each asset’s coupon surplus separately.");
   }
 
   const d: Deployment = {
@@ -488,8 +496,8 @@ export async function cmdTime(flags: Flags) {
 export async function cmdCatalog(flags: Flags) {
   const d = await ensureLocal(flags);
   const { publicClient } = await clients({ rpc: flag(flags, "rpc") || d.rpc });
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
-  const oracleAbi = loadArtifact("LeagueOracle").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
+  const oracleAbi = loadArtifact("NortholdOracle").abi as Abi;
   const count = (await publicClient.readContract({
     address: d.contracts.vault,
     abi: vaultAbi,
@@ -566,8 +574,8 @@ export async function cmdWallet(rest: string[], flags: Flags) {
     );
   }
 
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
-  const lensAbi = loadArtifact("LeagueLens").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
+  const lensAbi = loadArtifact("NortholdLens").abi as Abi;
   const ref = (await publicClient.readContract({
     address: d.contracts.vault,
     abi: vaultAbi,
@@ -588,19 +596,17 @@ export async function cmdWallet(rest: string[], flags: Flags) {
     return;
   }
 
-  let claimable = 0n;
   console.log(`\n  ${list.length} card(s)`);
   for (const p of list) {
-    claimable += p.claimableReward;
     const asset = assetSymbol(d, p.asset);
     console.log(
       `\n  #${p.tokenId}  ${slugFromBytes32(p.planSlug)}  ${statusName(p.status)}  ${rarityName(p.rarity)}/${tierName(p.sizeTier)}`,
     );
     console.log(`    principal  ${formatUnits(p.principal, asset.decimals)} ${asset.symbol}  (${money(usd8(p.principalUsd8))})`);
-    console.log(`    coupon     accrued ${formatUnits(p.accruedReward, 6)}  claimed ${formatUnits(p.claimedReward, 6)}  claimable ${formatUnits(p.claimableReward, 6)} USDT`);
+    console.log(`    coupon     accrued ${formatUnits(p.accruedReward, asset.decimals)}  claimed ${formatUnits(p.claimedReward, asset.decimals)}  claimable ${formatUnits(p.claimableReward, asset.decimals)} ${asset.symbol}`);
     console.log(`    lock       ${progressBar(p.lockProgressBps)}  unlock ${fmtTs(Number(p.unlockAt))}${p.matured ? "  MATURED" : ""}`);
   }
-  console.log(`\n  total claimable  ${formatUnits(claimable, 6)} USDT`);
+  console.log(`\n  claimable is paid in each position’s asset`);
 }
 
 type PositionView = {
@@ -642,7 +648,7 @@ export async function cmdMonitor(flags: Flags) {
   await printSnapshot(publicClient, d);
   if (!flags.follow) return;
   console.log("\nwatching Minted / Claimed / Unlocked / EmergencyExited  (ctrl+c to stop)");
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
   publicClient.watchContractEvent({
     address: d.contracts.vault,
     abi: vaultAbi,
@@ -657,8 +663,8 @@ export async function cmdMonitor(flags: Flags) {
 }
 
 async function printSnapshot(publicClient: PublicClient, d: Deployment) {
-  const lensAbi = loadArtifact("LeagueLens").abi as Abi;
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
+  const lensAbi = loadArtifact("NortholdLens").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
   const snap = (await publicClient.readContract({
     address: d.contracts.lens,
     abi: lensAbi,
@@ -666,8 +672,6 @@ async function printSnapshot(publicClient: PublicClient, d: Deployment) {
   })) as {
     nextTokenId: bigint;
     planCount: bigint;
-    rewardBalance: bigint;
-    rewardDecimals: number;
     referralBps: number;
     depositsPaused: boolean;
     exitsPaused: boolean;
@@ -686,11 +690,20 @@ async function printSnapshot(publicClient: PublicClient, d: Deployment) {
     args: [d.contracts.usdt],
   })) as bigint;
 
-  console.log("LeagueVault snapshot");
+  console.log("NortholdVault snapshot");
   console.log(`  cards minted     ${Number(snap.nextTokenId) - 1}`);
   console.log(`  plans            ${snap.planCount}`);
-  console.log(`  coupon treasury  ${formatUnits(snap.rewardBalance, snap.rewardDecimals)} USDT`);
   console.log(`  TVL              ${money(usd8(tvl[0]))}`);
+  for (const token of tokens) {
+    const extra = (await publicClient.readContract({
+      address: d.contracts.vault,
+      abi: vaultAbi,
+      functionName: "available",
+      args: [token],
+    })) as bigint;
+    const meta = assetSymbol(d, token);
+    console.log(`  surplus ${meta.symbol.padEnd(6)} ${formatUnits(extra, meta.decimals)}`);
+  }
   console.log(`  locked USDT      ${formatUnits(lockedUsdt, 6)}`);
   console.log(`  referral         ${bps(snap.referralBps)}`);
   console.log(`  pauses           deposits=${snap.depositsPaused} exits=${snap.exitsPaused}`);
@@ -702,7 +715,7 @@ export async function cmdSim(rest: string[], flags: Flags) {
   const user = await clients({ rpc: flag(flags, "rpc") || d.rpc, pk: ANVIL_USER_PK });
   const owner = await clients({ rpc: flag(flags, "rpc") || d.rpc, pk: ANVIL_PK });
   const mockAbi = loadArtifact("MockERC20", "MockERC20.sol").abi as Abi;
-  const vaultAbi = loadArtifact("LeagueVault").abi as Abi;
+  const vaultAbi = loadArtifact("NortholdVault").abi as Abi;
 
   async function mintUser(tokenAddr: Address, amount: bigint) {
     const hash = await owner.wallet.writeContract({

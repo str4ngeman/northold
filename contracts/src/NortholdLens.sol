@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import {LeagueMath} from "./libraries/LeagueMath.sol";
-import {LeagueVault} from "./LeagueVault.sol";
+import {NortholdMath} from "./libraries/NortholdMath.sol";
+import {NortholdVault} from "./NortholdVault.sol";
 import {PositionCard} from "./PositionCard.sol";
 
-/// @title LeagueLens
+/// @title NortholdLens
 /// @notice Batch reads for the CLI: wallet analysis, monitoring, simulations.
-contract LeagueLens {
+contract NortholdLens {
     struct PositionView {
         uint256 tokenId;
         address owner;
@@ -35,39 +35,33 @@ contract LeagueLens {
     struct VaultSnapshot {
         uint256 nextTokenId;
         uint256 planCount;
-        uint256 rewardBalance;
-        uint8 rewardDecimals;
         uint16 referralBps;
         bool depositsPaused;
         bool exitsPaused;
         address card;
-        address reward;
         address oracle;
     }
 
-    LeagueVault public immutable vault;
+    NortholdVault public immutable vault;
     PositionCard public immutable card;
 
     constructor(address vault_) {
-        vault = LeagueVault(vault_);
+        vault = NortholdVault(vault_);
         card = vault.card();
     }
 
     function snapshot() external view returns (VaultSnapshot memory s) {
         s.nextTokenId = vault.nextTokenId();
         s.planCount = vault.planCount();
-        s.rewardBalance = vault.reward().balanceOf(address(vault));
-        s.rewardDecimals = vault.rewardDecimals();
         s.referralBps = vault.referralBps();
         s.depositsPaused = vault.depositsPaused();
         s.exitsPaused = vault.exitsPaused();
         s.card = address(card);
-        s.reward = address(vault.reward());
         s.oracle = address(vault.oracle());
     }
 
     function positionView(uint256 tokenId) public view returns (PositionView memory v) {
-        LeagueVault.Position memory pos = vault.positions(tokenId);
+        NortholdVault.Position memory pos = vault.positions(tokenId);
         v.tokenId = tokenId;
         if (pos.startedAt == 0) return v;
         v.owner = card.ownerOf(tokenId);
@@ -89,7 +83,7 @@ contract LeagueLens {
         v.sizeTier = pos.sizeTier;
         v.status = pos.status;
         v.lockProgressBps =
-            LeagueMath.lockProgressBps(pos.startedAt, pos.lockSeconds, uint64(block.timestamp));
+            NortholdMath.lockProgressBps(pos.startedAt, pos.lockSeconds, uint64(block.timestamp));
         v.matured = vault.isMatured(tokenId);
     }
 
@@ -105,10 +99,10 @@ contract LeagueLens {
         perToken = new uint256[](tokens.length);
         for (uint256 i; i < tokens.length; ++i) {
             uint256 locked = vault.lockedPrincipal(tokens[i]);
-            LeagueVault.Asset memory a = vault.assets(tokens[i]);
+            NortholdVault.Asset memory a = vault.assets(tokens[i]);
             if (!a.configured || locked == 0) continue;
             uint256 price = vault.oracle().priceUsd(tokens[i]);
-            perToken[i] = LeagueMath.principalUsd8(locked, a.decimals, price);
+            perToken[i] = NortholdMath.principalUsd8(locked, a.decimals, price);
             total += perToken[i];
         }
     }

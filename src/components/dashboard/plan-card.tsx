@@ -5,7 +5,7 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { Hint } from "@/components/ui/hint";
 import { Surface } from "@/components/ui/surface";
 import { formatApy, formatFee, formatLock, formatUsd } from "@/lib/format";
-import { dailyUsdt, projectedUsdt } from "@/lib/math";
+import { dailyUsd, projectedUsd } from "@/lib/math";
 import type { Plan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +18,8 @@ export function PlanCard({
   highlight?: boolean;
   sampleUsd?: number;
 }) {
-  const earned = projectedUsdt(sampleUsd, plan.apyBps, plan.lockSeconds);
-  const daily = dailyUsdt(sampleUsd, plan.apyBps);
+  const earned = projectedUsd(sampleUsd, plan.apyBps, plan.lockSeconds);
+  const daily = dailyUsd(sampleUsd, plan.apyBps);
 
   return (
     <Surface hover className={cn("relative flex h-full flex-col p-6", highlight && "ring-[var(--light)]/35")}>
@@ -33,7 +33,7 @@ export function PlanCard({
       <p className="mt-2 text-sm text-[var(--ink-2)]">{plan.tagline}</p>
       <p className="num mt-5 text-4xl font-semibold text-[var(--light)]">{formatApy(plan.apyBps)}</p>
       <p className="mt-2 text-sm text-[var(--gain)]">
-        About {formatUsd(earned)} USDT on a {formatUsd(sampleUsd, 0)} lock
+        About {formatUsd(earned)} in the token you lock, on a {formatUsd(sampleUsd, 0)} hold
       </p>
       <dl className="mt-5 space-y-2 text-sm text-[var(--ink-2)]">
         <div className="flex justify-between">
@@ -41,7 +41,7 @@ export function PlanCard({
           <dd>{formatUsd(plan.minUsd, 0)}–{formatUsd(plan.maxUsd, 0)}</dd>
         </div>
         <div className="flex justify-between">
-          <Hint text="Taken from principal only if you exit before the lock ends. Claimed USDT is yours.">
+          <Hint text="Taken from principal only if you exit before the lock ends. Claimed yield stays yours.">
             <dt>Early exit</dt>
           </Hint>
           <dd>{formatFee(plan.emergencyFeeBps)}</dd>

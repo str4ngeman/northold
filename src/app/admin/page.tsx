@@ -85,9 +85,9 @@ export default function AdminHome() {
           hint={book ? `${book.locked} open cards · ${money(h?.investedUsd ?? 0)} ever minted` : "TVL in the vault"}
         />
         <Stat
-          label="USDT paid out"
+          label="Yield paid"
           value={h ? money(h.couponPaidUsdt) : "—"}
-          hint="Claims + coupon paid on unlock"
+          hint="Claims + coupon paid on unlock, in USD"
           accent="gain"
         />
         <Stat
@@ -97,7 +97,7 @@ export default function AdminHome() {
           accent="light"
         />
         <Stat
-          label="Coupon treasury"
+          label="Yield treasury"
           value={h ? money(h.treasuryUsdt) : "—"}
           hint={
             h?.coverage == null

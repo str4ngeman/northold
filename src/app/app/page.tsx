@@ -19,7 +19,7 @@ export default function VaultPage() {
   const { views, catalog } = usePositions(now);
 
   const locked = views.reduce((sum, v) => sum + v.principalUsd, 0);
-  const claimable = views.reduce((sum, v) => sum + v.claimableUsdt, 0);
+  const claimableUsd = views.reduce((sum, v) => sum + v.claimableUsd, 0);
   const canSeeVault = Boolean(user || (catalog?.protocol && address));
 
   if (loading) return <div className="h-40 animate-pulse rounded-[1.75rem] bg-white/5" />;
@@ -33,7 +33,7 @@ export default function VaultPage() {
           <p className="mt-2 max-w-lg text-sm text-[var(--ink-2)]">
             {catalog?.protocol
               ? `Cards on this hold are live NFTs on ${catalog.network.shortLabel}. Claim and unlock confirm in MetaMask.`
-              : "Each card is a live lock. Claim USDT whenever the light looks good."}
+              : "Each card is a live lock. Claim yield in the token you held."}
           </p>
         </div>
         <CtaButton href="/app/stake">Open a new hold</CtaButton>
@@ -42,7 +42,7 @@ export default function VaultPage() {
       {canSeeVault && views.length > 0 && (
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Stat label="Locked value" value={locked} money />
-          <Stat label="Claimable USDT" value={claimable} money accent />
+          <Stat label="Claimable" value={claimableUsd} money accent />
           <Stat label="Open positions" value={views.length} />
         </div>
       )}

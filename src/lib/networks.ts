@@ -1,8 +1,9 @@
-import { foundry, mainnet, sepolia } from "viem/chains";
+import { mainnet, sepolia } from "viem/chains";
 
-export const NETWORK_IDS = ["anvil", "sepolia", "mainnet"] as const;
+export const NETWORK_IDS = ["sepolia", "mainnet"] as const;
 export type NetworkId = (typeof NETWORK_IDS)[number];
 export type NetworkMode = "lab" | "test" | "live";
+export const DEFAULT_NETWORK_ID: NetworkId = "sepolia";
 
 export type NetworkTokenMeta = {
   address: `0x${string}`;
@@ -22,6 +23,7 @@ export type NetworkProfile = {
   protocolPlans?: Record<string, number>;
   tokens?: NetworkTokenMap;
   nextTokenId?: number;
+  deployerAddress?: string;
 };
 
 export type NetworkCapabilities = {
@@ -58,16 +60,6 @@ export const MAINNET_TOKEN_ADDRESSES: Record<LabTokenSlug, `0x${string}`> = {
 };
 
 export const NETWORKS: Record<NetworkId, NetworkDefinition> = {
-  anvil: {
-    id: "anvil",
-    mode: "lab",
-    name: "Local (Anvil)",
-    shortLabel: "Anvil",
-    chainId: 31337,
-    explorerUrl: "",
-    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    capabilities: { warp: true, faucet: true, deployMocks: true },
-  },
   sepolia: {
     id: "sepolia",
     mode: "test",
@@ -76,7 +68,7 @@ export const NETWORKS: Record<NetworkId, NetworkDefinition> = {
     chainId: 11155111,
     explorerUrl: "https://sepolia.etherscan.io",
     nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
-    capabilities: { warp: false, faucet: false, deployMocks: true },
+    capabilities: { warp: false, faucet: true, deployMocks: true },
   },
   mainnet: {
     id: "mainnet",
@@ -90,9 +82,6 @@ export const NETWORKS: Record<NetworkId, NetworkDefinition> = {
   },
 };
 
-export const ANVIL_RPC = "http://127.0.0.1:8545";
-export const ANVIL_WS = "ws://127.0.0.1:8545";
-
 export function isNetworkId(value: unknown): value is NetworkId {
   return typeof value === "string" && (NETWORK_IDS as readonly string[]).includes(value);
 }
@@ -102,11 +91,10 @@ export function networkByChainId(chainId: number): NetworkDefinition | undefined
 }
 
 export function networkIdFromChainId(chainId: number): NetworkId {
-  return networkByChainId(chainId)?.id ?? "anvil";
+  return networkByChainId(chainId)?.id ?? DEFAULT_NETWORK_ID;
 }
 
 export function publicRpcUrl(id: NetworkId): string {
-  if (id === "anvil") return ANVIL_RPC;
   if (id === "sepolia") {
     return process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
   }
@@ -114,14 +102,12 @@ export function publicRpcUrl(id: NetworkId): string {
 }
 
 export function publicWsUrl(id: NetworkId): string | undefined {
-  if (id === "anvil") return ANVIL_WS;
   if (id === "sepolia") return process.env.NEXT_PUBLIC_SEPOLIA_WS_URL || undefined;
   return process.env.NEXT_PUBLIC_MAINNET_WS_URL || undefined;
 }
 
 export function serverRpcUrl(id: NetworkId, profileRpc?: string): string {
   if (profileRpc) return profileRpc;
-  if (id === "anvil") return process.env.ANVIL_RPC_URL || ANVIL_RPC;
   if (id === "sepolia") {
     return process.env.SEPOLIA_RPC_URL || process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || publicRpcUrl(id);
   }
@@ -149,16 +135,7 @@ export function explorerBlockUrl(explorerUrl: string, block: string | number) {
 }
 
 export function viemChain(id: NetworkId) {
-  if (id === "sepolia") return sepolia;
-  if (id === "mainnet") return mainnet;
-  return {
-    ...foundry,
-    name: "Anvil",
-    rpcUrls: {
-      default: { http: [ANVIL_RPC], webSocket: [ANVIL_WS] },
-      public: { http: [ANVIL_RPC], webSocket: [ANVIL_WS] },
-    },
-  };
+  return id === "mainnet" ? mainnet : sepolia;
 }
 
 export function walletAddChainParams(id: NetworkId, rpcUrl?: string) {
@@ -191,5 +168,6 @@ export function emptyProfile(id: NetworkId): NetworkProfile {
     protocolPlans: {},
     tokens: defaultTokenMap(id),
     nextTokenId: 1,
+    deployerAddress: "",
   };
 }

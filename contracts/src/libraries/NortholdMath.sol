@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @dev Mirrors `src/lib/math.ts` so off-chain views and on-chain payouts agree.
-library LeagueMath {
+library NortholdMath {
     using Math for uint256;
 
     uint256 internal constant BPS = 10_000;
@@ -51,16 +51,14 @@ library LeagueMath {
         return RARITY_COMMON;
     }
 
-    function accruedReward(
-        uint256 principalUsd8_,
-        uint16 apyBps,
-        uint256 elapsed,
-        uint8 rewardDecimals
-    ) internal pure returns (uint256) {
-        if (principalUsd8_ == 0 || apyBps == 0 || elapsed == 0) return 0;
-        uint256 num = principalUsd8_.mulDiv(uint256(apyBps) * elapsed, 1);
-        uint256 den = (10 ** USD_DECIMALS) * BPS * SECONDS_PER_YEAR;
-        return num.mulDiv(10 ** uint256(rewardDecimals), den);
+    /// @dev Simple interest in the locked token: principal * APY * elapsed / year.
+    function accruedReward(uint256 principal, uint16 apyBps, uint256 elapsed)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (principal == 0 || apyBps == 0 || elapsed == 0) return 0;
+        return principal.mulDiv(uint256(apyBps) * elapsed, BPS * SECONDS_PER_YEAR);
     }
 
     function claimable(uint256 accrued, uint256 claimed, uint8 status)

@@ -1,17 +1,8 @@
 import { createConfig, fallback, http, webSocket } from "wagmi";
-import { foundry, mainnet, sepolia } from "wagmi/chains";
+import { mainnet, sepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
-import { ANVIL_RPC, ANVIL_WS, publicRpcUrl, publicWsUrl, type NetworkId } from "@/lib/networks";
-
-export const anvilChain = {
-  ...foundry,
-  name: "Anvil",
-  rpcUrls: {
-    default: { http: [ANVIL_RPC], webSocket: [ANVIL_WS] },
-    public: { http: [ANVIL_RPC], webSocket: [ANVIL_WS] },
-  },
-};
+import { publicRpcUrl, publicWsUrl, type NetworkId } from "@/lib/networks";
 
 export const sepoliaChain = {
   ...sepolia,
@@ -44,10 +35,9 @@ function transportFor(id: NetworkId) {
 }
 
 export const wagmiConfig = createConfig({
-  chains: [anvilChain, sepoliaChain, mainnetChain],
+  chains: [sepoliaChain, mainnetChain],
   connectors: [injected({ shimDisconnect: true })],
   transports: {
-    [anvilChain.id]: transportFor("anvil"),
     [sepoliaChain.id]: transportFor("sepolia"),
     [mainnetChain.id]: transportFor("mainnet"),
   },
@@ -55,5 +45,4 @@ export const wagmiConfig = createConfig({
   ssr: true,
 });
 
-/** @deprecated Use catalog.network.chainId. Kept for Anvil-only call sites. */
-export const appChain = anvilChain;
+export const appChain = sepoliaChain;

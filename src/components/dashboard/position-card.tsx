@@ -56,7 +56,7 @@ export function PositionCard({
       </p>
 
       <div className="mt-5 flex items-center justify-between text-sm">
-        <Hint text="Simple USDT yield. Claim any day — it does not compound.">
+        <Hint text="Simple yield in the token you locked. Claim any day — it does not compound.">
           <span className="text-[var(--gain)] font-medium">{formatApy(view.plan.apyBps)}</span>
         </Hint>
         <span className="text-[var(--ink-3)]">
@@ -75,8 +75,10 @@ export function PositionCard({
 
       <div className="mt-4 flex items-end justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-wider text-[var(--ink-3)]">Claimable USDT</p>
-          <p className="num mt-0.5 text-lg font-semibold text-[var(--gain)]">{formatUsd(view.claimableUsdt)}</p>
+          <p className="text-[11px] uppercase tracking-wider text-[var(--ink-3)]">Claimable {view.token.symbol}</p>
+          <p className="num mt-0.5 text-lg font-semibold text-[var(--gain)]">
+            {formatTokenAmount(view.claimableReward, view.token.symbol)}
+          </p>
         </div>
         {href && <span className="text-xs text-[var(--light)]">Open →</span>}
       </div>

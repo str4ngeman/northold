@@ -28,14 +28,16 @@ export async function POST(_request: Request, ctx: Ctx) {
   if (!view.isMatured) {
     return NextResponse.json({ error: "Lock is still active" }, { status: 400 });
   }
-  const usdt = view.claimableUsdt;
-  row.claimedUsdt += usdt;
+  const coupon = view.claimableReward;
+  row.claimedReward = view.claimedReward + coupon;
+  row.claimedUsdt = row.claimedReward;
   row.status = "unlocked";
   row.unlockedAt = Date.now();
   await row.save();
   return json({
     principal: row.principalAmount,
-    usdt,
+    reward: coupon,
+    symbol: view.token.symbol,
     position: mapPosition(row),
   });
 }

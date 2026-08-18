@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { json, requireAdmin } from "@/lib/api-guard";
-import { decodeChainError, loadLiveProtocol, syncPlanToChain } from "@/lib/lab/chain-write";
+import { loadLiveProtocol } from "@/lib/lab/chain-write";
 import { validatePlanInput, type SeedPlan } from "@/lib/lab/plan-codec";
 import { Plan } from "@/lib/models/plan";
 
@@ -58,18 +58,6 @@ export async function POST(request: NextRequest) {
   }
 
   const protocol = await loadLiveProtocol();
-  let onChainId: number | undefined;
-  let chainAction: "add" | "update" | "skipped" = "skipped";
-  if (protocol) {
-    try {
-      const synced = await syncPlanToChain(seed);
-      onChainId = synced.planId;
-      chainAction = synced.action;
-    } catch (err) {
-      return NextResponse.json({ error: decodeChainError(err) }, { status: 502 });
-    }
-  }
-
   const plan = await Plan.create({
     slug: seed.slug,
     name: body.name,
@@ -80,7 +68,6 @@ export async function POST(request: NextRequest) {
     apyBps: seed.apyBps,
     emergencyFeeBps: seed.emergencyFeeBps,
     active: seed.active,
-    onChainId,
   });
-  return json({ plan: serialize(plan), chain: chainAction }, 201);
+  return json({ plan: serialize(plan), vaultLive: Boolean(protocol) }, 201);
 }

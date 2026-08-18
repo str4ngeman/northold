@@ -17,7 +17,7 @@ export type Token = {
   priceUsd: number;
   color: string;
   active?: boolean;
-  network?: "anvil" | "sepolia" | "mainnet" | "custom";
+  network?: "sepolia" | "mainnet" | "custom";
 };
 
 export type Plan = {
@@ -34,7 +34,7 @@ export type Plan = {
 };
 
 export type ProtocolConfig = {
-  networkId: "anvil" | "sepolia" | "mainnet";
+  networkId: "sepolia" | "mainnet";
   mode: "lab" | "test" | "live";
   name: string;
   chainId: number;
@@ -48,13 +48,14 @@ export type ProtocolConfig = {
 };
 
 export type AppNetworkView = {
-  id: "anvil" | "sepolia" | "mainnet";
+  id: "sepolia" | "mainnet";
   name: string;
   shortLabel: string;
   mode: "lab" | "test" | "live";
   chainId: number;
   rpcUrl: string;
   explorerUrl: string;
+  deployerAddress?: string;
   capabilities: {
     warp: boolean;
     faucet: boolean;
@@ -71,7 +72,7 @@ export type PositionNft = {
   startedAt: number;
   rarity: Rarity;
   sizeTier: SizeTier;
-  claimedUsdt: number;
+  claimedReward: number;
   status: PositionStatus;
   unlockedAt?: number;
 };
@@ -80,8 +81,10 @@ export type PositionView = PositionNft & {
   token: Token;
   plan: Plan;
   principalUsd: number;
-  accruedUsdt: number;
-  claimableUsdt: number;
+  accruedReward: number;
+  claimableReward: number;
+  accruedUsd: number;
+  claimableUsd: number;
   unlockAt: number;
   lockProgress: number;
   remainingMs: number;

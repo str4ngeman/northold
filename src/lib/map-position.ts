@@ -10,6 +10,7 @@ export function mapPosition(doc: {
   rarity: string;
   sizeTier: string;
   claimedUsdt: number;
+  claimedReward?: number;
   status: string;
   unlockedAt?: number;
 }): PositionNft {
@@ -22,7 +23,7 @@ export function mapPosition(doc: {
     startedAt: doc.startedAt,
     rarity: doc.rarity as PositionNft["rarity"],
     sizeTier: doc.sizeTier as PositionNft["sizeTier"],
-    claimedUsdt: doc.claimedUsdt,
+    claimedReward: Number(doc.claimedReward ?? doc.claimedUsdt ?? 0),
     status: doc.status as PositionNft["status"],
     unlockedAt: doc.unlockedAt,
   };

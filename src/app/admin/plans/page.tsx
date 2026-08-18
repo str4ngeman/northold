@@ -9,6 +9,7 @@ import { AdminField, AdminPage, AdminTable, EmptyRow, StatusPill, Td, Th } from 
 import { CtaButton } from "@/components/ui/cta-button";
 import { formatApy, formatFee, formatLock, formatUsd } from "@/lib/format";
 import { DAY_SECONDS } from "@/lib/math";
+import { useOwnerTx } from "@/hooks/use-owner-tx";
 
 type PlanRow = {
   _id: string;
@@ -84,6 +85,7 @@ export default function AdminPlans() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [busy, setBusy] = useState(false);
+  const ownerTx = useOwnerTx();
 
   async function load() {
     const res = await fetch("/api/admin/plans");
@@ -120,34 +122,56 @@ export default function AdminPlans() {
       return;
     }
     setBusy(true);
-    const res = creating
-      ? await fetch("/api/admin/plans", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      : await fetch(`/api/admin/plans/${editing?._id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-    setBusy(false);
-    const data = (await res.json()) as { error?: string; chain?: string };
-    if (!res.ok) {
-      toast.error(data.error || (creating ? "Could not create plan" : "Save failed"));
-      return;
+    try {
+      const res = creating
+        ? await fetch("/api/admin/plans", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await fetch(`/api/admin/plans/${editing?._id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+      const data = (await res.json()) as { error?: string; plan?: PlanRow; vaultLive?: boolean };
+      if (!res.ok) {
+        toast.error(data.error || (creating ? "Could not create plan" : "Save failed"));
+        return;
+      }
+      if (vaultLive) {
+        const onChainId = await ownerTx.syncPlan(
+          {
+            slug: body.slug,
+            lockSeconds: body.lockSeconds,
+            minUsd: body.minUsd,
+            maxUsd: body.maxUsd,
+            apyBps: body.apyBps,
+            emergencyFeeBps: body.emergencyFeeBps,
+            active: body.active,
+          },
+          creating ? undefined : editing?.onChainId,
+        );
+        const id = data.plan?._id ?? editing?._id;
+        if (id) {
+          await fetch(`/api/admin/plans/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...body, onChainId }),
+          });
+        }
+        toast.success(creating ? "Plan created on-chain" : "Plan saved on-chain");
+        await ownerTx.refresh();
+      } else {
+        toast.success(creating ? "Plan created (deploy later to put it on-chain)" : "Plan saved");
+      }
+      close();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "On-chain write failed");
+    } finally {
+      setBusy(false);
     }
-    toast.success(
-      creating
-        ? data.chain === "skipped"
-          ? "Plan created (deploy later to put it on-chain)"
-          : "Plan created on-chain"
-        : data.chain === "skipped"
-          ? "Plan saved"
-          : "Plan saved on-chain. Existing cards keep the APY they minted with.",
-    );
-    close();
-    await load();
   }
 
   const open = creating || Boolean(editing);
@@ -158,7 +182,7 @@ export default function AdminPlans() {
       title="Lock bearings"
       description={
         vaultLive
-          ? "Edits write to Mongo and the vault on the active network. Cards already minted keep the coupon they locked in."
+          ? "Edits write to Mongo, then the connected MetaMask wallet signs the vault update. Cards already minted keep the coupon they locked in."
           : "One row per bearing. Deploy from Lab to push these onto the hold."
       }
       action={
@@ -218,7 +242,7 @@ export default function AdminPlans() {
         title={creating ? "New bearing" : `Edit ${editing?.name ?? "bearing"}`}
         description={
           vaultLive
-            ? "APY and exit fee are percentages. Lock length is in days. Saving pushes updatePlan to the vault."
+            ? "APY and exit fee are percentages. Lock length is in days. Saving asks MetaMask to call updatePlan."
             : "APY and exit fee are percentages. Lock length is in days."
         }
         onSubmit={submit}

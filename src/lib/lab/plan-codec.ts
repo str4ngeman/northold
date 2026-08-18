@@ -36,9 +36,10 @@ export function usd8ToUsd(value: bigint): number {
 }
 
 export function slugToBytes32(slug: string): `0x${string}` {
-  const hex = Buffer.from(slug, "utf8").toString("hex");
-  if (hex.length > 64) throw new Error("Plan slug is longer than 32 bytes");
-  return `0x${hex.padEnd(64, "0")}`;
+  const bytes = new TextEncoder().encode(slug);
+  if (bytes.length > 32) throw new Error("Plan slug is longer than 32 bytes");
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").padEnd(64, "0");
+  return `0x${hex}`;
 }
 
 export function validatePlanInput(input: SeedPlan): string | null {

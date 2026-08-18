@@ -1,10 +1,10 @@
 export const BRAND = {
   name: "Northold",
   domain: "northold.app",
-  tagline: "Hold north. Collect USDT.",
-  title: "Northold — Hold north. Collect USDT.",
+  tagline: "Hold north. Earn the same token.",
+  title: "Northold — Hold north. Earn the same token.",
   description:
-    "Lock ERC-20 tokens on a bearing. Yield is paid in USDT and never compounds unless you lock again. Principal returns in the same asset.",
+    "Lock ERC-20 tokens on a bearing. Yield is paid in the same asset you deposit. Principal returns in that token too.",
   siwePrefix: "Northold wants you to sign in.",
   cookies: {
     session: "northold_session",

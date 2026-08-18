@@ -9,7 +9,7 @@ optimizer = true
 optimizer_runs = 200
 ffi = false
 fs_permissions = [{ access = "read", path = "./" }]
-gas_reports = ["LeagueVault", "PositionCard"]
+gas_reports = ["NortholdVault", "PositionCard"]
 
 [profile.default.fuzz]
 runs = 256

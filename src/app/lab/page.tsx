@@ -29,17 +29,14 @@ type Snapshot = {
   snapshot?: {
     cardsMinted: number;
     tvlUsd: number;
-    rewardBalance: string;
+    treasury?: { symbol: string; amount: string }[];
     referralBps: number;
   };
 };
 
-const WARPS = ["1d", "15d", "30d", "90d", "180d"];
-
 export default function LabChainPage() {
   const { state, refresh } = useLabState(4000);
   const { lines, running, run } = useLabExec();
-  const [custom, setCustom] = useState("12h");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
 
@@ -60,13 +57,12 @@ export default function LabChainPage() {
   }
 
   const live = Boolean(state?.connected);
-  const canWarp = Boolean(state?.network?.capabilities.warp);
 
   return (
     <LabPage
       kicker="Chain"
-      title={state?.network?.name ?? "Active chain"}
-      body="Read live blocks on the network the app is pointed at. Time travel stays on Anvil."
+      title={state?.network?.name ?? "Sepolia"}
+      body="Read live blocks on Sepolia. Lab deploy writes vault and token addresses into this app."
     >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <LabStat label="RPC" value={live ? "Connected" : "Down"} live={live} hint={state?.rpc} />
@@ -81,49 +77,20 @@ export default function LabChainPage() {
           hint={snap?.snapshot ? `${snap.snapshot.cardsMinted} cards` : "deploy first"}
         />
         <LabStat
-          label="Coupon treasury"
-          value={snap?.snapshot ? `${Number(snap.snapshot.rewardBalance).toLocaleString()} USDT` : "—"}
+          label="Coupon surplus"
+          value={
+            snap?.snapshot?.treasury?.length
+              ? snap.snapshot.treasury.map((row) => `${Number(row.amount).toLocaleString()} ${row.symbol}`).join(" · ")
+              : "—"
+          }
         />
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <CtaButton disabled={running} onClick={() => void act("anvil", ["start"])}>
-          Start anvil
-        </CtaButton>
-        <CtaButton variant="ghost" disabled={running} onClick={() => void act("anvil", ["stop"])}>
-          Stop
-        </CtaButton>
         <CtaButton variant="ghost" disabled={running} onClick={() => void act("time")}>
           Read time
         </CtaButton>
       </div>
-
-      {canWarp ? (
-      <Surface className="mt-8 p-5">
-        <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Warp</p>
-        <p className="mt-1 text-sm text-[var(--ink-2)]">Advance the local chain. Locks mature without waiting.</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {WARPS.map((w) => (
-            <CtaButton key={w} variant="ghost" className="h-10 px-4" disabled={running} onClick={() => void act("warp", [w])}>
-              +{w}
-            </CtaButton>
-          ))}
-        </div>
-        <div className="mt-4 flex max-w-sm gap-2">
-          <input
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            className="h-12 flex-1 rounded-full bg-white/4 px-4 text-sm outline-none ring-1 ring-white/10 focus:ring-[var(--light)]"
-            placeholder="12h"
-          />
-          <CtaButton disabled={running || !custom} onClick={() => void act("warp", [custom])}>
-            Warp
-          </CtaButton>
-        </div>
-      </Surface>
-      ) : (
-        <p className="mt-6 text-sm text-[var(--ink-3)]">Warp is Anvil-only. Switch the app to Local in Admin → Settings to time-travel.</p>
-      )}
 
       {catalog?.plans?.length ? (
         <div className="mt-8 grid gap-4 lg:grid-cols-2">

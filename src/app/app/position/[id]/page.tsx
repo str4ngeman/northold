@@ -58,7 +58,7 @@ export default function PositionPage() {
 
   const position = view;
   const active = position.status === "locked";
-  const canClaim = active && position.claimableUsdt > 0.0001;
+  const canClaim = active && position.claimableReward > 0.0000001;
   const canUnlock = position.isMatured && position.status === "locked";
   const canEmergency = active && !position.isMatured;
 
@@ -147,12 +147,12 @@ export default function PositionPage() {
             <Row label="Principal" value={formatTokenAmount(view.principalAmount, view.token.symbol)} />
             <Row label="Value" value={formatUsd(view.principalUsd)} />
             <Row
-              label="Claimable USDT"
-              value={formatUsd(view.claimableUsdt)}
+              label={`Claimable ${view.token.symbol}`}
+              value={formatTokenAmount(view.claimableReward, view.token.symbol)}
               hint="Pull this any time. Already-claimed yield stays yours even if you exit early."
               gain
             />
-            <Row label="Claimed" value={formatUsd(view.claimedUsdt)} />
+            <Row label="Claimed" value={formatTokenAmount(view.claimedReward, view.token.symbol)} />
             <Row label="Coupon" value={formatApy(view.plan.apyBps)} />
             <Row
               label="Early exit fee"
@@ -165,10 +165,10 @@ export default function PositionPage() {
             <CtaButton
               disabled={!canClaim || busy}
               onClick={() =>
-                void act("claim", (d) => `Claimed ${formatUsd(Number((d as { claimed?: number }).claimed))} USDT`)
+                void act("claim", (d) => `Claimed ${formatTokenAmount(Number((d as { claimed?: number }).claimed ?? 0), position.token.symbol)}`)
               }
             >
-              Claim USDT
+              Claim {view.token.symbol}
             </CtaButton>
             <CtaButton
               variant="ghost"

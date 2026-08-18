@@ -3,19 +3,19 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {LeagueLens} from "../src/LeagueLens.sol";
-import {LeagueOracle} from "../src/LeagueOracle.sol";
-import {LeagueVault} from "../src/LeagueVault.sol";
+import {NortholdLens} from "../src/NortholdLens.sol";
+import {NortholdOracle} from "../src/NortholdOracle.sol";
+import {NortholdVault} from "../src/NortholdVault.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {PositionCard} from "../src/PositionCard.sol";
 
 contract Fixture is Test {
     uint256 internal constant USD8 = 1e8;
 
-    LeagueVault internal vault;
+    NortholdVault internal vault;
     PositionCard internal card;
-    LeagueOracle internal oracle;
-    LeagueLens internal lens;
+    NortholdOracle internal oracle;
+    NortholdLens internal lens;
     MockERC20 internal usdt;
     MockERC20 internal usdc;
     MockERC20 internal weth;
@@ -34,10 +34,10 @@ contract Fixture is Test {
         usdt = new MockERC20("Tether USD", "USDT", 6);
         usdc = new MockERC20("USD Coin", "USDC", 6);
         weth = new MockERC20("Wrapped Ether", "WETH", 18);
-        oracle = new LeagueOracle(owner);
+        oracle = new NortholdOracle(owner);
         card = new PositionCard(owner);
-        vault = new LeagueVault(address(card), address(usdt), address(oracle), owner);
-        lens = new LeagueLens(address(vault));
+        vault = new NortholdVault(address(card), address(oracle), owner);
+        lens = new NortholdLens(address(vault));
         card.setMinter(address(vault));
 
         oracle.setPrice(address(usdt), 1 * USD8);
@@ -49,7 +49,7 @@ contract Fixture is Test {
         vault.setAsset(address(weth), true);
 
         pulseId = vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("pulse"),
                 lockSeconds: uint32(30 days),
                 minUsd8: 100 * USD8,
@@ -60,7 +60,7 @@ contract Fixture is Test {
             })
         );
         horizonId = vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("horizon"),
                 lockSeconds: uint32(90 days),
                 minUsd8: 250 * USD8,
@@ -71,7 +71,7 @@ contract Fixture is Test {
             })
         );
         apexId = vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("apex"),
                 lockSeconds: uint32(180 days),
                 minUsd8: 500 * USD8,
@@ -83,8 +83,14 @@ contract Fixture is Test {
         );
 
         usdt.mint(owner, 10_000_000 * 1e6);
+        usdc.mint(owner, 10_000_000 * 1e6);
+        weth.mint(owner, 1_000 ether);
         usdt.approve(address(vault), type(uint256).max);
-        vault.fundRewards(5_000_000 * 1e6);
+        usdc.approve(address(vault), type(uint256).max);
+        weth.approve(address(vault), type(uint256).max);
+        vault.fundRewards(address(usdt), 5_000_000 * 1e6);
+        vault.fundRewards(address(usdc), 5_000_000 * 1e6);
+        vault.fundRewards(address(weth), 500 ether);
         vm.stopPrank();
 
         usdt.mint(alice, 1_000_000 * 1e6);
@@ -110,7 +116,7 @@ contract Fixture is Test {
     function _yearPlan() internal returns (uint256 planId) {
         vm.prank(owner);
         planId = vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("year"),
                 lockSeconds: uint32(31_557_600),
                 minUsd8: 100 * USD8,

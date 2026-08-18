@@ -3,9 +3,9 @@ pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/Script.sol";
 
-import {LeagueLens} from "../src/LeagueLens.sol";
-import {LeagueOracle} from "../src/LeagueOracle.sol";
-import {LeagueVault} from "../src/LeagueVault.sol";
+import {NortholdLens} from "../src/NortholdLens.sol";
+import {NortholdOracle} from "../src/NortholdOracle.sol";
+import {NortholdVault} from "../src/NortholdVault.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {PositionCard} from "../src/PositionCard.sol";
 
@@ -15,10 +15,10 @@ contract DeployLocal is Script {
     function run()
         external
         returns (
-            LeagueVault vault,
+            NortholdVault vault,
             PositionCard card,
-            LeagueOracle oracle,
-            LeagueLens lens,
+            NortholdOracle oracle,
+            NortholdLens lens,
             MockERC20 usdt,
             MockERC20 usdc,
             MockERC20 weth,
@@ -37,10 +37,10 @@ contract DeployLocal is Script {
         weth = new MockERC20("Wrapped Ether", "WETH", 18);
         wbtc = new MockERC20("Wrapped Bitcoin", "WBTC", 8);
 
-        oracle = new LeagueOracle(owner);
+        oracle = new NortholdOracle(owner);
         card = new PositionCard(owner);
-        vault = new LeagueVault(address(card), address(usdt), address(oracle), owner);
-        lens = new LeagueLens(address(vault));
+        vault = new NortholdVault(address(card), address(oracle), owner);
+        lens = new NortholdLens(address(vault));
 
         card.setMinter(address(vault));
 
@@ -55,7 +55,7 @@ contract DeployLocal is Script {
         vault.setAsset(address(wbtc), true);
 
         vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("pulse"),
                 lockSeconds: uint32(30 days),
                 minUsd8: 100 * USD8,
@@ -66,7 +66,7 @@ contract DeployLocal is Script {
             })
         );
         vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("horizon"),
                 lockSeconds: uint32(90 days),
                 minUsd8: 250 * USD8,
@@ -77,7 +77,7 @@ contract DeployLocal is Script {
             })
         );
         vault.addPlan(
-            LeagueVault.Plan({
+            NortholdVault.Plan({
                 slug: bytes32("apex"),
                 lockSeconds: uint32(180 days),
                 minUsd8: 500 * USD8,
@@ -89,8 +89,17 @@ contract DeployLocal is Script {
         );
 
         usdt.mint(owner, 10_000_000 * 1e6);
+        usdc.mint(owner, 10_000_000 * 1e6);
+        weth.mint(owner, 1_000 ether);
+        wbtc.mint(owner, 50 * 1e8);
         usdt.approve(address(vault), type(uint256).max);
-        vault.fundRewards(5_000_000 * 1e6);
+        usdc.approve(address(vault), type(uint256).max);
+        weth.approve(address(vault), type(uint256).max);
+        wbtc.approve(address(vault), type(uint256).max);
+        vault.fundRewards(address(usdt), 5_000_000 * 1e6);
+        vault.fundRewards(address(usdc), 5_000_000 * 1e6);
+        vault.fundRewards(address(weth), 500 ether);
+        vault.fundRewards(address(wbtc), 25 * 1e8);
 
         vm.stopBroadcast();
     }

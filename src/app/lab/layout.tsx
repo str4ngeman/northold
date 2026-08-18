@@ -18,6 +18,7 @@ import {
 import { Logo } from "@/components/brand/logo";
 import { NetworkBadge } from "@/components/network-badge";
 import { StatusDot } from "@/components/lab/ui";
+import { WalletButton } from "@/components/wallet-button";
 import { useLabState } from "@/hooks/use-lab-state";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,9 @@ export default function LabLayout({ children }: LayoutProps<"/lab">) {
         <div className="mb-3 px-3">
           <NetworkBadge />
         </div>
+        <div className="mb-3 px-3">
+          <WalletButton />
+        </div>
         <p className="mb-3 px-3 text-[11px] uppercase tracking-[0.16em] text-[var(--ink-3)]">Northold lab</p>
         {LINKS.map((item) => (
           <Link
@@ -61,7 +65,7 @@ export default function LabLayout({ children }: LayoutProps<"/lab">) {
         <div className="mt-auto space-y-3 px-3 pt-8">
           <StatusDot on={Boolean(state?.connected)} />
           <p className="text-[11px] leading-relaxed text-[var(--ink-3)]">
-            {state?.network?.name ?? "Active network"} — warp and faucet stay on Anvil. Sepolia and mainnet are live chain data.
+            {state?.network?.name ?? "Sepolia"} — deploy writes contract addresses into this catalog.
           </p>
         </div>
       </aside>

@@ -12,9 +12,9 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { FadeIn } from "@/components/motion";
 import { Surface } from "@/components/ui/surface";
 import { BRAND } from "@/lib/brand";
-import { getPlan, getToken, materializeSeeds } from "@/lib/dummy";
-import { formatApy, formatUsd } from "@/lib/format";
-import { buildPositionView, dailyUsdt, projectedUsdt } from "@/lib/math";
+import { getPlan, getToken, materializeSeeds, TOKENS } from "@/lib/dummy";
+import { formatApy, formatTokenAmount, formatUsd } from "@/lib/format";
+import { buildPositionView, dailyReward, projectedReward } from "@/lib/math";
 import type { Plan } from "@/lib/types";
 
 export function HomeView({ plans }: { plans: Plan[] }) {
@@ -36,8 +36,8 @@ export function HomeView({ plans }: { plans: Plan[] }) {
             Capital takes a bearing and stays.
           </h1>
           <p className="mt-5 max-w-lg text-base leading-relaxed text-[var(--ink-2)]">
-            Deposit USDT, USDC, ETH or BTC. The position NFT is the hold. Yield lands in USDT and never
-            compounds unless you lock again — simple on purpose.
+            Deposit USDT, USDC, ETH or BTC. The position NFT is the hold. Yield is paid in that same
+            token and never compounds unless you lock again — simple on purpose.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <CtaButton href="/app/stake">Open a hold</CtaButton>
@@ -46,7 +46,7 @@ export function HomeView({ plans }: { plans: Plan[] }) {
             </CtaButton>
           </div>
           <div className="mt-8 flex flex-wrap gap-3 text-xs text-[var(--ink-2)]">
-            {["Claim any time", "Same-token principal", "Early exit if you must"].map((item) => (
+            {["Claim any time", "Same-token yield", "Early exit if you must"].map((item) => (
               <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 ring-1 ring-white/8">
                 <CompassMark size={12} className="text-[var(--gain)]" />
                 {item}
@@ -86,11 +86,11 @@ export function HomeView({ plans }: { plans: Plan[] }) {
             },
             {
               title: "Principal stays home",
-              body: "What you lock comes back in the same token. ETH in, ETH out. USDT yield on top.",
+              body: "What you lock comes back in the same token. ETH in, ETH out. The coupon is ETH too.",
             },
             {
               title: "Claim on your clock",
-              body: "USDT accrues in the open. Pull it any day. Unclaimed coupon is forfeited only on emergency exit.",
+              body: "Yield accrues in the open, in the asset you hold. Pull it any day. Unclaimed coupon is forfeited only on emergency exit.",
             },
           ].map((item, i) => (
             <FadeIn key={item.title} delay={i * 0.08}>
@@ -116,8 +116,8 @@ export function HomeView({ plans }: { plans: Plan[] }) {
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {[
             { icon: Compass, title: "Choose an asset", body: "Stables if you want calm. ETH or BTC if you want that asset back later." },
-            { icon: Lock, title: "Set a bearing", body: "Watch, Bearing, or Meridian. Longer holds pay a fatter USDT coupon." },
-            { icon: Sunrise, title: "Collect the light", body: "USDT accrues while the lock is closed. Claim whenever. Principal waits for the date." },
+            { icon: Lock, title: "Set a bearing", body: "Watch, Bearing, or Meridian. Longer holds pay a fatter coupon in the same token." },
+            { icon: Sunrise, title: "Collect the light", body: "Yield accrues while the lock is closed. Claim whenever. Principal waits for the date." },
           ].map((step, i) => (
             <FadeIn key={step.title} delay={i * 0.08}>
               <Surface className="h-full p-6">
@@ -146,7 +146,7 @@ export function HomeView({ plans }: { plans: Plan[] }) {
         <FadeIn>
           <h2 className="text-3xl font-semibold">Idle capital has no bearing.</h2>
           <p className="mx-auto mt-3 max-w-md text-[var(--ink-2)]">
-            Open a hold in about a minute. Claim the USDT tomorrow if you want to see the light move.
+            Open a hold in about a minute. Claim the coupon tomorrow if you want to see the light move.
           </p>
           <div className="mt-6">
             <CtaButton href="/app/stake">Set your first hold</CtaButton>
@@ -160,10 +160,13 @@ export function HomeView({ plans }: { plans: Plan[] }) {
 function YieldPlayground({ plans }: { plans: Plan[] }) {
   const [usd, setUsd] = useState(1000);
   const [planId, setPlanId] = useState(plans[1]?.id ?? plans[0]?.id ?? "horizon");
+  const [tokenId, setTokenId] = useState(TOKENS[0]?.id ?? "usdt");
   const plan = plans.find((p) => p.id === planId) ?? plans[0];
-  if (!plan) return null;
-  const earned = projectedUsdt(usd, plan.apyBps, plan.lockSeconds);
-  const daily = dailyUsdt(usd, plan.apyBps);
+  const token = TOKENS.find((item) => item.id === tokenId) ?? TOKENS[0];
+  if (!plan || !token) return null;
+  const amount = usd / token.priceUsd;
+  const earned = projectedReward(amount, plan.apyBps, plan.lockSeconds);
+  const daily = dailyReward(amount, plan.apyBps);
 
   return (
     <Surface className="grid gap-8 p-6 md:grid-cols-[1.1fr_.9fr] md:p-8">
@@ -180,13 +183,27 @@ function YieldPlayground({ plans }: { plans: Plan[] }) {
           className="mt-6 w-full accent-[var(--light)]"
         />
         <div className="mt-4 flex flex-wrap gap-2">
+          {TOKENS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTokenId(item.id)}
+              className={`rounded-full px-4 py-2 text-sm ${
+                item.id === token.id ? "bg-[var(--light)] text-[#16120a]" : "bg-white/5 text-[var(--ink-2)]"
+              }`}
+            >
+              {item.symbol}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
           {plans.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setPlanId(item.id)}
               className={`rounded-full px-4 py-2 text-sm ${
-                item.id === plan.id ? "bg-[var(--light)] text-[#16120a]" : "bg-white/5 text-[var(--ink-2)]"
+                item.id === plan.id ? "bg-white/10 ring-1 ring-[var(--light)]/40" : "bg-white/5 text-[var(--ink-2)]"
               }`}
             >
               {item.name} · {formatApy(item.apyBps)}
@@ -195,12 +212,14 @@ function YieldPlayground({ plans }: { plans: Plan[] }) {
         </div>
       </div>
       <div className="rounded-[1.5rem] bg-black/20 p-6">
-        <p className="text-sm text-[var(--ink-3)]">USDT by the date</p>
-        <p className="num mt-2 text-4xl font-semibold text-[var(--gain)]">{formatUsd(earned)}</p>
-        <p className="mt-2 text-sm text-[var(--ink-2)]">{formatUsd(daily)} every day while it holds</p>
+        <p className="text-sm text-[var(--ink-3)]">{token.symbol} by the date</p>
+        <p className="num mt-2 text-4xl font-semibold text-[var(--gain)]">{formatTokenAmount(earned, token.symbol)}</p>
+        <p className="mt-2 text-sm text-[var(--ink-2)]">
+          {formatTokenAmount(daily, token.symbol)} every day while it holds · {formatUsd(earned * token.priceUsd)}
+        </p>
         <div className="mt-6 flex items-center gap-2 text-sm text-[var(--ink-2)]">
-          <TokenMark id="usdt" symbol="USDT" size={28} />
-          Paid in USDT. Principal stays in the token you deposited.
+          <TokenMark id={token.id} symbol={token.symbol} color={token.color} size={28} />
+          Paid in {token.symbol}. Principal comes back in {token.symbol}.
         </div>
         <div className="mt-6">
           <CtaButton href={`/app/stake?plan=${plan.id}`} className="w-full">

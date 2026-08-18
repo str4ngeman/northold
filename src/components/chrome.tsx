@@ -59,7 +59,7 @@ function AppShell({ children }: { children: ReactNode }) {
           </>
         )}
         <p className="mt-auto px-3 pt-8 text-[11px] leading-relaxed text-[var(--ink-3)]">
-          Yield is paid in USDT. Principal comes back in the same token you locked.
+          Yield is paid in the token you locked. Principal comes back in that same token.
         </p>
       </aside>
       <div className="flex min-w-0 flex-col">

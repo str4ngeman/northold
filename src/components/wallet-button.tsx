@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAccount, useChainId, useConnect, useDisconnect, useSignMessage, useSwitchChain } from "wagmi";
@@ -25,8 +25,17 @@ export function WalletButton() {
   const { signMessageAsync } = useSignMessage();
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (user?.role !== "admin" || !address || !isConnected) return;
+    void fetch("/api/admin/network", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deployerAddress: address }),
+    });
+  }, [user?.role, address, isConnected]);
+
   const targetChainId = catalog?.network.chainId ?? catalog?.protocol?.chainId;
-  const targetNetwork = (catalog?.network.id ?? (targetChainId ? networkIdFromChainId(targetChainId) : "anvil")) as NetworkId;
+  const targetNetwork = (catalog?.network.id ?? (targetChainId ? networkIdFromChainId(targetChainId) : "sepolia")) as NetworkId;
 
   async function ensureNetwork(id: NetworkId) {
     const def = NETWORKS[id];
@@ -72,6 +81,13 @@ export function WalletButton() {
       if (!authRes.ok) throw new Error(data.error || "Wallet sign-in failed");
       const signedIn = await refresh();
       toast.success(`Wallet connected on ${NETWORKS[targetNetwork].shortLabel}`);
+      if (signedIn?.role === "admin" && wallet) {
+        await fetch("/api/admin/network", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deployerAddress: wallet }),
+        });
+      }
       if (!user && (pathname === "/login" || pathname === "/register")) {
         router.push(signedIn?.role === "admin" ? "/admin" : "/app");
         router.refresh();

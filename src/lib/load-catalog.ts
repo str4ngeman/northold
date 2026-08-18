@@ -53,7 +53,7 @@ export async function loadCatalog(): Promise<Catalog> {
     settings: {
       siteName: settings?.siteName ?? BRAND.name,
       tagline: settings?.tagline ?? BRAND.tagline,
-      rewardSymbol: settings?.rewardSymbol ?? "USDT",
+      rewardSymbol: settings?.rewardSymbol ?? "asset",
       referralBps: settings?.referralBps ?? 500,
       supportEnabled: settings?.supportEnabled ?? true,
       nextTokenId: runtime.profile.nextTokenId ?? settings?.nextTokenId ?? 1,

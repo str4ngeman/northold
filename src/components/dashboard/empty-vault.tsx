@@ -27,7 +27,7 @@ export function EmptyVault() {
       </button>
       <h2 className="mt-6 text-2xl font-semibold">Nothing is holding yet</h2>
       <p className="mt-2 max-w-md text-sm text-[var(--ink-2)]">
-        Lock a token, mint the card, and USDT starts accruing immediately. Claim whenever you like.
+        Lock a token, mint the card, and that same token starts accruing immediately. Claim whenever you like.
       </p>
       <div className="mt-6">
         <CtaButton href="/app/stake">Open a hold</CtaButton>

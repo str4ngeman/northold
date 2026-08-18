@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { LabPage, LogPane } from "@/components/lab/ui";
+import { WalletButton } from "@/components/wallet-button";
 import { CtaButton } from "@/components/ui/cta-button";
 import { Surface } from "@/components/ui/surface";
+import { useLabDeploy } from "@/hooks/use-lab-deploy";
 import { useLabExec } from "@/hooks/use-lab-exec";
 import { useLabState } from "@/hooks/use-lab-state";
-import { formatApy, formatLock } from "@/lib/format";
+import { formatApy, formatAddress, formatLock } from "@/lib/format";
 
 type Seed = {
   plans?: { slug: string; lockSeconds: number; apyBps: number; minUsd: number; maxUsd: number; active: boolean }[];
@@ -16,9 +18,14 @@ type Seed = {
 
 export default function LabDeployPage() {
   const { state, refresh } = useLabState(0);
-  const { lines, running, code, run } = useLabExec();
+  const { lines: buildLines, running: building, run } = useLabExec();
+  const { address, isConnected, run: deployFromWallet } = useLabDeploy();
   const [seed, setSeed] = useState<Seed | null>(null);
+  const [lines, setLines] = useState<string[]>([]);
+  const [deploying, setDeploying] = useState(false);
+  const [ok, setOk] = useState(false);
   const contracts = state?.deployment?.contracts;
+  const storedDeployer = state?.deployment?.deployer;
 
   async function loadSeed() {
     const res = await fetch("/api/lab/plan-seed");
@@ -31,54 +38,60 @@ export default function LabDeployPage() {
   }, []);
 
   async function deploy() {
-    if (state?.network?.id === "anvil" && !state?.anvil.running) {
-      await run("anvil", ["start"]);
-      await new Promise((r) => setTimeout(r, 1500));
+    setOk(false);
+    setDeploying(true);
+    const log: string[] = [];
+    const push = (line: string) => {
+      log.push(line);
+      setLines([...log]);
+    };
+    try {
+      await deployFromWallet(push);
+      setOk(true);
+      await refresh();
+      await loadSeed();
+    } catch (err) {
+      push(err instanceof Error ? err.message : "Deploy failed");
+    } finally {
+      setDeploying(false);
     }
-    await run("deploy");
-    await fetch("/api/lab/sync", { method: "POST" });
-    await refresh();
-    await loadSeed();
   }
+
+  const running = building || deploying;
+  const logLines = deploying || lines.length ? lines : buildLines;
 
   return (
     <LabPage
       kicker="Deploy"
-      title={`Broadcast on ${state?.network?.name ?? "the active chain"}`}
-      body={
-        state?.network?.id === "mainnet"
-          ? "Mainnet reuses the canonical USDT/USDC/WETH/WBTC addresses. It will not deploy mock tokens."
-          : state?.network?.id === "sepolia"
-            ? "Sepolia deploys mock tokens once, then reuses those addresses for later vault deploys."
-            : "Compile and deploy mocks, oracle, NFT, vault, and lens. Plans come from Admin — not hardcoded Pulse/Horizon/Apex."
-      }
+      title="Broadcast on Sepolia from MetaMask"
+      body="The connected wallet is the protocol owner. Confirm each transaction in MetaMask. Addresses and the deployer are saved to the database."
     >
+      <Surface className="mb-6 max-w-xl p-5">
+        <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Deployer</p>
+        <p className="mt-2 font-mono text-sm text-[var(--ink)]">
+          {address ? formatAddress(address) : "Connect MetaMask"}
+        </p>
+        {storedDeployer && storedDeployer !== "0x0000000000000000000000000000000000000000" ? (
+          <p className="mt-2 text-xs text-[var(--ink-3)]">
+            Saved in database: {formatAddress(storedDeployer)}
+          </p>
+        ) : null}
+        {!isConnected ? (
+          <div className="mt-4">
+            <WalletButton />
+          </div>
+        ) : null}
+      </Surface>
+
       <div className="flex flex-wrap gap-3">
         <CtaButton disabled={running} onClick={() => void run("build")}>
           Build
         </CtaButton>
-        <CtaButton disabled={running} onClick={() => void deploy()}>
-          Deploy {state?.network?.shortLabel ?? state?.network?.id ?? "local"}
-        </CtaButton>
-        <CtaButton
-          variant="ghost"
-          disabled={running}
-          onClick={() => {
-            void (async () => {
-              const res = await fetch("/api/lab/sync", { method: "POST" });
-              const data = (await res.json()) as { error?: string };
-              if (!res.ok) {
-                console.error(data.error);
-                return;
-              }
-              await refresh();
-            })();
-          }}
-        >
-          Sync addresses to app
+        <CtaButton disabled={running || !isConnected} onClick={() => void deploy()}>
+          {deploying ? "Deploying…" : "Deploy Sepolia"}
         </CtaButton>
       </div>
-      {code === 0 ? <p className="mt-3 text-sm text-[var(--gain)]">Last job succeeded.</p> : null}
+      {ok ? <p className="mt-3 text-sm text-[var(--gain)]">Deployer and contract addresses saved.</p> : null}
 
       {seed?.plans?.length ? (
         <Surface className="mt-8 overflow-auto p-2">
@@ -136,7 +149,7 @@ export default function LabDeployPage() {
       )}
 
       <div className="mt-6">
-        <LogPane lines={lines} running={running} />
+        <LogPane lines={logLines} running={running} />
       </div>
     </LabPage>
   );

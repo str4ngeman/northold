@@ -32,14 +32,15 @@ export async function POST(_request: Request, ctx: Ctx) {
     return NextResponse.json({ error: "This card is already matured" }, { status: 400 });
   }
   const fee = emergencyFeeAmount(row.principalAmount, plan.emergencyFeeBps);
-  const forfeitedUsdt = view.claimableUsdt;
+  const forfeited = view.claimableReward;
   row.status = "emergencyExited";
   row.unlockedAt = Date.now();
   await row.save();
   return json({
     returned: row.principalAmount - fee,
     fee,
-    forfeitedUsdt,
+    forfeited,
+    symbol: view.token.symbol,
     position: mapPosition(row),
   });
 }

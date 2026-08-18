@@ -8,7 +8,9 @@ import { AdminModal } from "@/components/admin/modal";
 import { AdminField, AdminPage, AdminTable, EmptyRow, StatusPill, Td, Th } from "@/components/admin/ui";
 import { TokenMark } from "@/components/brand/token-mark";
 import { CtaButton } from "@/components/ui/cta-button";
+import { useOwnerTx } from "@/hooks/use-owner-tx";
 import { formatAddress, formatUsd } from "@/lib/format";
+import type { Address } from "viem";
 
 type TokenRow = {
   _id: string;
@@ -20,7 +22,7 @@ type TokenRow = {
   priceUsd: number;
   color: string;
   active: boolean;
-  network?: "anvil" | "sepolia" | "mainnet" | "custom";
+  network?: "sepolia" | "mainnet" | "custom";
   onVault?: boolean;
 };
 
@@ -68,6 +70,7 @@ export default function AdminTokens() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [busy, setBusy] = useState(false);
+  const ownerTx = useOwnerTx();
 
   async function load() {
     const res = await fetch("/api/admin/tokens");
@@ -114,26 +117,43 @@ export default function AdminTokens() {
       return;
     }
     setBusy(true);
-    const res = creating
-      ? await fetch("/api/admin/tokens", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        })
-      : await fetch(`/api/admin/tokens/${editing?._id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-    setBusy(false);
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      toast.error(data.error || (creating ? "Could not create token" : "Save failed"));
-      return;
+    try {
+      const res = creating
+        ? await fetch("/api/admin/tokens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        : await fetch(`/api/admin/tokens/${editing?._id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error || (creating ? "Could not create token" : "Save failed"));
+        return;
+      }
+      if (vaultLive) {
+        const tokenAddr = body.address as Address;
+        if (creating || body.active !== editing?.active) {
+          await ownerTx.setAsset(tokenAddr, body.active);
+        }
+        if (creating || body.priceUsd !== editing?.priceUsd) {
+          await ownerTx.setPrice(tokenAddr, body.priceUsd);
+        }
+        toast.success(creating ? "Token created on-chain" : "Token saved on-chain");
+        await ownerTx.refresh();
+      } else {
+        toast.success(creating ? "Token created" : "Token saved");
+      }
+      close();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "On-chain write failed");
+    } finally {
+      setBusy(false);
     }
-    toast.success(creating ? "Token created" : "Token saved");
-    close();
-    await load();
   }
 
   const open = creating || Boolean(editing);
@@ -145,7 +165,7 @@ export default function AdminTokens() {
       title="Stakeable assets"
       description={
         vaultLive
-          ? `Addresses follow ${networkName}. Price edits hit that network's oracle. Other networks keep their own token addresses.`
+          ? `Addresses follow ${networkName}. Price and availability edits ask the connected MetaMask wallet to sign.`
           : "Placeholder assets until you deploy. Switching Test/Live/Local never overwrites the other networks."
       }
       action={
@@ -185,13 +205,11 @@ export default function AdminTokens() {
               <Td>
                 <p className="font-mono text-xs">{formatAddress(token.address)}</p>
                 <p className="text-[11px] text-[var(--ink-3)]">
-                  {token.network === "anvil"
-                    ? "Anvil mock"
-                    : token.network === "sepolia"
-                      ? "Sepolia"
-                      : token.network === "mainnet"
-                        ? "Ethereum mainnet"
-                        : "Unbound"}
+                  {token.network === "sepolia"
+                    ? "Sepolia"
+                    : token.network === "mainnet"
+                      ? "Ethereum mainnet"
+                      : "Unbound"}
                 </p>
               </Td>
               <Td>{formatUsd(token.priceUsd, token.priceUsd >= 100 ? 0 : 2)}</Td>

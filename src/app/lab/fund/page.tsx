@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isAddress } from "viem";
 import { toast } from "sonner";
 
 import { LabPage } from "@/components/lab/ui";
 import { CtaButton } from "@/components/ui/cta-button";
 import { Surface } from "@/components/ui/surface";
-import { ANVIL_USER, ANVIL_USER_PK } from "@/lib/lab/accounts";
+import { WalletButton } from "@/components/wallet-button";
+import { useLabFund } from "@/hooks/use-lab-fund";
+import { formatAddress } from "@/lib/format";
 
 const DEFAULTS = {
-  eth: "10",
+  eth: "0.02",
   usdt: "10000",
   usdc: "10000",
   weth: "10",
@@ -18,33 +20,32 @@ const DEFAULTS = {
 };
 
 export default function LabFundPage() {
+  const { address, isConnected, fund } = useLabFund();
   const [to, setTo] = useState("");
   const [eth, setEth] = useState(DEFAULTS.eth);
   const [tokens, setTokens] = useState({ ...DEFAULTS });
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string[] | null>(null);
 
+  useEffect(() => {
+    if (address && !to) setTo(address);
+  }, [address, to]);
+
   async function send() {
     if (!isAddress(to)) {
-      toast.error("Paste the MetaMask address from the other browser");
+      toast.error("Paste a Sepolia address");
       return;
     }
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch("/api/lab/fund", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to,
-          eth,
-          tokens: { usdt: tokens.usdt, usdc: tokens.usdc, weth: tokens.weth, wbtc: tokens.wbtc },
-        }),
+      const sent = await fund({
+        to,
+        eth,
+        tokens: { usdt: tokens.usdt, usdc: tokens.usdc, weth: tokens.weth, wbtc: tokens.wbtc },
       });
-      const data = (await res.json()) as { error?: string; sent?: string[] };
-      if (!res.ok) throw new Error(data.error || "Fund failed");
-      setResult(data.sent ?? []);
-      toast.success("Sent from the Anvil deployer");
+      setResult(sent);
+      toast.success("Sent from the connected MetaMask wallet");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Fund failed");
     } finally {
@@ -56,19 +57,20 @@ export default function LabFundPage() {
     <LabPage
       kicker="Fund"
       title="Send test funds"
-      body="Anvil only. Push ETH and mock tokens from the local deployer. Sepolia and mainnet use real faucets / real tokens."
+      body="Mints Sepolia mock tokens from the connected MetaMask wallet. ETH is sent from that same wallet — keep the amount small."
     >
-      <Surface className="max-w-xl p-5">
-        <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Anvil account #1</p>
-        <p className="mt-2 break-all font-mono text-xs text-[var(--ink-2)]">{ANVIL_USER}</p>
-        <p className="mt-2 break-all font-mono text-[11px] text-[var(--ink-3)]">{ANVIL_USER_PK}</p>
-        <p className="mt-2 text-xs text-[var(--ink-3)]">
-          Import that key in MetaMask, add chain 31337 → http://127.0.0.1:8545, or paste any address below and fund it.
-        </p>
-      </Surface>
-
       <Surface className="mt-4 max-w-xl p-5">
-        <label className="field">
+        <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">From</p>
+        <p className="mt-2 font-mono text-sm">
+          {address ? formatAddress(address) : "Connect MetaMask"}
+        </p>
+        {!isConnected ? (
+          <div className="mt-4">
+            <WalletButton />
+          </div>
+        ) : null}
+
+        <label className="field mt-5">
           <span>Destination</span>
           <input
             value={to}
@@ -77,35 +79,26 @@ export default function LabFundPage() {
             className="font-mono"
           />
         </label>
-        <button
-          type="button"
-          className="mt-2 text-xs text-[var(--light)]"
-          onClick={() => setTo(ANVIL_USER)}
-        >
-          Fill Anvil account #1
-        </button>
 
         <label className="field mt-5">
           <span>ETH</span>
           <input value={eth} onChange={(e) => setEth(e.target.value)} />
         </label>
-        {(["usdt", "usdc", "weth", "wbtc"] as const).map((symbol) => (
-          <label key={symbol} className="field mt-3">
-            <span>{symbol.toUpperCase()}</span>
+        {(["usdt", "usdc", "weth", "wbtc"] as const).map((slug) => (
+          <label key={slug} className="field mt-3">
+            <span>{slug.toUpperCase()}</span>
             <input
-              value={tokens[symbol]}
-              onChange={(e) => setTokens({ ...tokens, [symbol]: e.target.value })}
+              value={tokens[slug]}
+              onChange={(e) => setTokens((prev) => ({ ...prev, [slug]: e.target.value }))}
             />
           </label>
         ))}
 
-        <div className="mt-6">
-          <CtaButton disabled={busy} onClick={() => void send()}>
-            {busy ? "Sending…" : "Send from deployer"}
-          </CtaButton>
-        </div>
-        {result ? (
-          <p className="mt-4 text-sm text-[var(--gain)]">{result.join(" · ")}</p>
+        <CtaButton className="mt-6" disabled={busy || !isConnected} onClick={() => void send()}>
+          {busy ? "Sending…" : "Fund"}
+        </CtaButton>
+        {result?.length ? (
+          <p className="mt-3 text-sm text-[var(--gain)]">{result.join(" · ")}</p>
         ) : null}
       </Surface>
     </LabPage>

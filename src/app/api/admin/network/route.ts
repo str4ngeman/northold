@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAddress } from "viem";
+import { getAddress, isAddress } from "viem";
 
 import { json, requireAdmin } from "@/lib/api-guard";
 import {
@@ -32,6 +32,7 @@ export async function PUT(request: NextRequest) {
     activeNetwork?: string;
     confirmLive?: boolean;
     rpcUrl?: string;
+    deployerAddress?: string;
     protocol?: {
       vault?: string;
       card?: string;
@@ -62,11 +63,19 @@ export async function PUT(request: NextRequest) {
     cardAddress?: string;
     oracleAddress?: string;
     lensAddress?: string;
+    deployerAddress?: string;
     tokens?: NetworkTokenMap;
   } = {};
 
   if (typeof body.rpcUrl === "string" && body.rpcUrl.trim()) {
     patch.rpcUrl = body.rpcUrl.trim();
+  }
+
+  if (typeof body.deployerAddress === "string" && body.deployerAddress.trim()) {
+    if (!isAddress(body.deployerAddress)) {
+      return NextResponse.json({ error: "Deployer is not a valid address" }, { status: 400 });
+    }
+    patch.deployerAddress = getAddress(body.deployerAddress);
   }
 
   if (body.protocol) {

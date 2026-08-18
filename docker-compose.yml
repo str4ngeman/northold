@@ -3,6 +3,8 @@ services:
     image: ghcr.io/str4ngeman/northold:latest
     container_name: northold
     restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     networks:
       - web
     environment:
@@ -13,19 +15,28 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=web
-      - traefik.http.routers.northold.rule=Host(`northold.app`)
-      - traefik.http.routers.northold.entrypoints=websecure
-      - traefik.http.routers.northold.tls=true
-      - traefik.http.routers.northold.tls.certresolver=letsencrypt
-      - traefik.http.routers.northold.service=northold
-      - traefik.http.services.northold.loadbalancer.server.port=3000
-      - traefik.http.routers.northold-http.rule=Host(`northold.app`)
-      - traefik.http.routers.northold-http.entrypoints=web
-      - traefik.http.routers.northold-http.middlewares=northold-https
-      - traefik.http.middlewares.northold-https.redirectscheme.scheme=https
+      SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
+      WATCHTOWER_URL: http://watchtower:8080
+      WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN}
+
+  # Pulls ghcr.io/...:latest and recreates northold. Do not reverse-proxy this
+  # container — the admin app talks to it on the docker network only.
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    container_name: watchtower
+    restart: unless-stopped
+    networks:
+      - web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_TIMEOUT: 60s
+      WATCHTOWER_POLL_INTERVAL: "300"
+      WATCHTOWER_HTTP_API_UPDATE: "true"
+      WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true"
+      WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN}
 
 networks:
   web:

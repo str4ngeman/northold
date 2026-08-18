@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { json, requireUser } from "@/lib/api-guard";
 import { mapPlan, mapToken } from "@/lib/map-catalog";
 import { mapPosition } from "@/lib/map-position";
-import { accruedUsdt, buildPositionView, claimableUsdt, elapsedSeconds, principalUsd } from "@/lib/math";
+import { accruedReward, claimableReward, elapsedSeconds } from "@/lib/math";
 import { Plan } from "@/lib/models/plan";
 import { Position } from "@/lib/models/position";
 import { Token } from "@/lib/models/token";
@@ -21,8 +21,7 @@ async function loadOwned(userId: unknown, id: string) {
   if (!tokenDoc || !planDoc) return null;
   const token = mapToken(tokenDoc);
   const plan = mapPlan(planDoc);
-  const view = buildPositionView(mapPosition(row), token, plan, Date.now());
-  return { row, token, plan, view };
+  return { row, token, plan, nft: mapPosition(row) };
 }
 
 export async function POST(_request: Request, ctx: Ctx) {
@@ -34,15 +33,17 @@ export async function POST(_request: Request, ctx: Ctx) {
   if (loaded.row.status === "emergencyExited" || loaded.row.status === "unlocked") {
     return NextResponse.json({ error: "This card is no longer accruing" }, { status: 400 });
   }
-  const usd = principalUsd(loaded.row.principalAmount, loaded.token.priceUsd);
-  const accrued = accruedUsdt(
-    usd,
+  const nft = mapPosition(loaded.row);
+  const accrued = accruedReward(
+    loaded.row.principalAmount,
     loaded.plan.apyBps,
-    elapsedSeconds(mapPosition(loaded.row), loaded.plan.lockSeconds, Date.now()),
+    elapsedSeconds(nft, loaded.plan.lockSeconds, Date.now()),
   );
-  const amount = claimableUsdt(accrued, loaded.row.claimedUsdt, loaded.row.status);
+  const claimed = Number(loaded.row.claimedReward ?? loaded.row.claimedUsdt ?? 0);
+  const amount = claimableReward(accrued, claimed, loaded.row.status);
   if (amount <= 0) return NextResponse.json({ error: "Nothing to claim yet" }, { status: 400 });
-  loaded.row.claimedUsdt += amount;
+  loaded.row.claimedReward = claimed + amount;
+  loaded.row.claimedUsdt = loaded.row.claimedReward;
   await loaded.row.save();
-  return json({ claimed: amount, position: mapPosition(loaded.row) });
+  return json({ claimed: amount, symbol: loaded.token.symbol, position: mapPosition(loaded.row) });
 }

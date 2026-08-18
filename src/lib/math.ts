@@ -56,19 +56,11 @@ export function elapsedSeconds(
   return Math.max(0, (stop - position.startedAt) / 1000);
 }
 
-export function accruedUsdt(
-  principalUsdValue: number,
-  apyBps: number,
-  elapsed: number,
-) {
-  return principalUsdValue * (apyBps / 10_000) * (elapsed / SECONDS_PER_YEAR);
+export function accruedReward(principalAmount: number, apyBps: number, elapsed: number) {
+  return principalAmount * (apyBps / 10_000) * (elapsed / SECONDS_PER_YEAR);
 }
 
-export function claimableUsdt(
-  accrued: number,
-  claimed: number,
-  status: PositionStatus,
-) {
+export function claimableReward(accrued: number, claimed: number, status: PositionStatus) {
   if (status === "emergencyExited") return 0;
   return Math.max(0, accrued - claimed);
 }
@@ -92,12 +84,21 @@ export function isMatured(
   return now >= unlockAtMs(position.startedAt, lockSeconds);
 }
 
-export function projectedUsdt(principalUsdValue: number, apyBps: number, lockSeconds: number) {
-  return accruedUsdt(principalUsdValue, apyBps, lockSeconds);
+export function projectedReward(principalAmount: number, apyBps: number, lockSeconds: number) {
+  return accruedReward(principalAmount, apyBps, lockSeconds);
 }
 
-export function dailyUsdt(principalUsdValue: number, apyBps: number) {
-  return accruedUsdt(principalUsdValue, apyBps, DAY_SECONDS);
+export function dailyReward(principalAmount: number, apyBps: number) {
+  return accruedReward(principalAmount, apyBps, DAY_SECONDS);
+}
+
+/** USD value of a same-asset coupon, at the current price. */
+export function projectedUsd(principalUsdValue: number, apyBps: number, lockSeconds: number) {
+  return accruedReward(principalUsdValue, apyBps, lockSeconds);
+}
+
+export function dailyUsd(principalUsdValue: number, apyBps: number) {
+  return accruedReward(principalUsdValue, apyBps, DAY_SECONDS);
 }
 
 export function emergencyFeeAmount(principalAmount: number, feeBps: number) {
@@ -112,7 +113,8 @@ export function buildPositionView(
 ): PositionView {
   const usd = principalUsd(position.principalAmount, token.priceUsd);
   const elapsed = elapsedSeconds(position, plan.lockSeconds, now);
-  const accrued = accruedUsdt(usd, plan.apyBps, elapsed);
+  const accrued = accruedReward(position.principalAmount, plan.apyBps, elapsed);
+  const claimable = claimableReward(accrued, position.claimedReward, position.status);
   const matured = isMatured(position, plan.lockSeconds, now);
 
   return {
@@ -120,8 +122,10 @@ export function buildPositionView(
     token,
     plan,
     principalUsd: usd,
-    accruedUsdt: accrued,
-    claimableUsdt: claimableUsdt(accrued, position.claimedUsdt, position.status),
+    accruedReward: accrued,
+    claimableReward: claimable,
+    accruedUsd: accrued * token.priceUsd,
+    claimableUsd: claimable * token.priceUsd,
     unlockAt: unlockAtMs(position.startedAt, plan.lockSeconds),
     lockProgress: lockProgress(position.startedAt, plan.lockSeconds, now),
     remainingMs: remainingMs(position.startedAt, plan.lockSeconds, now),

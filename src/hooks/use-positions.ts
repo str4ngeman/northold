@@ -97,16 +97,20 @@ export function usePositions(now: number) {
           startedAt,
           rarity: (RARITY[row.rarity] ?? "common") as Rarity,
           sizeTier: (TIER[row.sizeTier] ?? "spark") as SizeTier,
-          claimedUsdt: Number(formatUnits(row.claimedReward, 6)),
+          claimedReward: Number(formatUnits(row.claimedReward, token.decimals)),
           status,
           unlockedAt: row.unlockedAt ? Number(row.unlockedAt) * 1000 : undefined,
         };
         const view = buildPositionView(nft, token, plan, chainNow);
+        const accruedReward = Number(formatUnits(row.accruedReward, token.decimals));
+        const claimableReward = Number(formatUnits(row.claimableReward, token.decimals));
         return [
           {
             ...view,
-            accruedUsdt: Number(formatUnits(row.accruedReward, 6)),
-            claimableUsdt: Number(formatUnits(row.claimableReward, 6)),
+            accruedReward,
+            claimableReward,
+            accruedUsd: accruedReward * token.priceUsd,
+            claimableUsd: claimableReward * token.priceUsd,
             unlockAt,
             lockProgress: Number(row.lockProgressBps) / 10_000,
             remainingMs: Math.max(0, unlockAt - chainNow),

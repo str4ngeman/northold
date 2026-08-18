@@ -108,7 +108,7 @@ const SEED_OFFSETS = [
     principalAmount: 0.5,
     planId: "horizon",
     startedAgoMs: 20 * DAY_SECONDS * 1000,
-    claimedUsdt: 12.4,
+    claimedReward: 0.004,
     status: "locked" as const,
   },
   {
@@ -117,7 +117,7 @@ const SEED_OFFSETS = [
     principalAmount: 2500,
     planId: "pulse",
     startedAgoMs: 32 * DAY_SECONDS * 1000,
-    claimedUsdt: 14.8,
+    claimedReward: 14.8,
     status: "locked" as const,
   },
   {
@@ -126,7 +126,7 @@ const SEED_OFFSETS = [
     principalAmount: 0.15,
     planId: "apex",
     startedAgoMs: 10 * DAY_SECONDS * 1000,
-    claimedUsdt: 0,
+    claimedReward: 0,
     status: "locked" as const,
   },
 ];
@@ -140,7 +140,7 @@ export function materializeSeeds(now: number): PositionNft[] {
       principalAmount: spec.principalAmount,
       planId: spec.planId,
       startedAt: now - spec.startedAgoMs,
-      claimedUsdt: spec.claimedUsdt,
+      claimedReward: spec.claimedReward,
       status: spec.status,
     }),
   );

@@ -23,8 +23,8 @@ export default async function PlansPage() {
           Pick a north you can keep.
         </h1>
         <p className="mt-4 max-w-xl text-[var(--ink-2)]">
-          Every bearing pays USDT. Principal returns in the same token. Emergency exit is there if you
-          need it — with a fee, so the hold stays honest.
+          Every bearing pays a coupon in the token you lock. Principal returns in that same token.
+          Emergency exit is there if you need it — with a fee, so the hold stays honest.
         </p>
       </FadeIn>
       <div className="mt-10 grid gap-4 md:grid-cols-3">

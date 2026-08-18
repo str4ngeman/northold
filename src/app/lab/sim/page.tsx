@@ -1,9 +1,7 @@
 "use client";
 
-import { LabPage, LogPane } from "@/components/lab/ui";
-import { CtaButton } from "@/components/ui/cta-button";
+import { LabPage } from "@/components/lab/ui";
 import { Surface } from "@/components/ui/surface";
-import { useLabExec } from "@/hooks/use-lab-exec";
 
 const SCENARIOS = [
   {
@@ -24,13 +22,11 @@ const SCENARIOS = [
 ] as const;
 
 export default function LabSimPage() {
-  const { lines, running, run } = useLabExec();
-
   return (
     <LabPage
       kicker="Simulate"
       title="Walk a lock through time"
-      body="Anvil account #1 is the user. The tool mints mock USDT, then warps the chain."
+      body="Time-travel sims are Foundry tests now. Run npm run contracts:test. Sepolia cannot warp."
     >
       <div className="grid gap-4 lg:grid-cols-3">
         {SCENARIOS.map((s) => (
@@ -38,16 +34,8 @@ export default function LabSimPage() {
             <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">{s.id}</p>
             <h2 className="mt-2 text-xl font-semibold">{s.title}</h2>
             <p className="mt-2 flex-1 text-sm text-[var(--ink-2)]">{s.body}</p>
-            <div className="mt-5">
-              <CtaButton disabled={running} onClick={() => void run("sim", [s.id])}>
-                Run {s.id}
-              </CtaButton>
-            </div>
           </Surface>
         ))}
-      </div>
-      <div className="mt-6">
-        <LogPane lines={lines} running={running} />
       </div>
     </LabPage>
   );

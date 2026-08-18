@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
     rarity: rarityFrom(plan.lockSeconds, usd),
     sizeTier: sizeTierFromUsd(usd),
     claimedUsdt: 0,
+    claimedReward: 0,
     status: "locked",
   });
 

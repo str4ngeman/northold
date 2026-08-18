@@ -5,9 +5,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
 
-/// @title LeagueOracle
+/// @title NortholdOracle
 /// @notice Admin-set USD prices (8 decimals). Swap later for a Chainlink adapter.
-contract LeagueOracle is IPriceOracle, Ownable {
+contract NortholdOracle is IPriceOracle, Ownable {
     mapping(address => uint256) private _priceUsd8;
 
     error UnknownAsset(address asset);
