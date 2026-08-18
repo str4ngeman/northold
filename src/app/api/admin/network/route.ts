@@ -9,7 +9,12 @@ import {
   publicNetworkView,
   switchActiveNetwork,
 } from "@/lib/network-store";
-import { isNetworkId, type NetworkId, type NetworkTokenMap } from "@/lib/networks";
+import {
+  isBlockchainNetworkPinned,
+  isNetworkId,
+  type NetworkId,
+  type NetworkTokenMap,
+} from "@/lib/networks";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -45,6 +50,13 @@ export async function PUT(request: NextRequest) {
   const targetId: NetworkId | undefined = isNetworkId(body.activeNetwork) ? body.activeNetwork : undefined;
   const current = await getRuntimeNetwork();
   const id = targetId ?? current.id;
+
+  if (isBlockchainNetworkPinned() && targetId && targetId !== current.id) {
+    return NextResponse.json(
+      { error: `App network is pinned to ${current.id} by BLOCKCHAIN_NETWORK. Change the env to switch.` },
+      { status: 400 },
+    );
+  }
 
   if (id === "mainnet" && current.id !== "mainnet" && body.confirmLive !== true) {
     return NextResponse.json(

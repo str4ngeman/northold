@@ -2,7 +2,7 @@ import { createConfig, fallback, http, webSocket } from "wagmi";
 import { mainnet, sepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
-import { publicRpcUrl, publicWsUrl, type NetworkId } from "@/lib/networks";
+import { appNetworkId, publicRpcUrl, publicWsUrl, type NetworkId } from "@/lib/networks";
 
 export const sepoliaChain = {
   ...sepolia,
@@ -34,8 +34,11 @@ function transportFor(id: NetworkId) {
   return http(rpc);
 }
 
+export const appChain = appNetworkId() === "mainnet" ? mainnetChain : sepoliaChain;
+const extraChain = appChain.id === sepoliaChain.id ? mainnetChain : sepoliaChain;
+
 export const wagmiConfig = createConfig({
-  chains: [sepoliaChain, mainnetChain],
+  chains: [appChain, extraChain],
   connectors: [injected({ shimDisconnect: true })],
   transports: {
     [sepoliaChain.id]: transportFor("sepolia"),
@@ -44,5 +47,3 @@ export const wagmiConfig = createConfig({
   pollingInterval: 12_000,
   ssr: true,
 });
-
-export const appChain = sepoliaChain;

@@ -5,7 +5,7 @@ import { useAccount, useChainId, useConfig, useSwitchChain } from "wagmi";
 import { sendTransaction, waitForTransactionReceipt, writeContract } from "wagmi/actions";
 
 import { decodeChainError } from "@/lib/chain-error";
-import { LAB_TOKEN_DECIMALS, walletAddChainParams } from "@/lib/networks";
+import { appNetworkId, LAB_TOKEN_DECIMALS, NETWORKS, networkIdFromChainId, walletAddChainParams } from "@/lib/networks";
 
 const mintAbi = [
   {
@@ -46,7 +46,7 @@ export function useLabFund() {
       const contracts = state.deployment?.contracts;
       if (!contracts) throw new Error("Deploy the vault on Sepolia first");
 
-      const target = state.network?.chainId ?? 11155111;
+      const target = state.network?.chainId ?? NETWORKS[appNetworkId()].chainId;
       if (chainId !== target) {
         try {
           await switchChainAsync({ chainId: target });
@@ -55,7 +55,7 @@ export function useLabFund() {
           if (!eth) throw new Error("MetaMask is not available");
           await eth.request({
             method: "wallet_addEthereumChain",
-            params: [walletAddChainParams("sepolia", state.rpc)],
+            params: [walletAddChainParams(networkIdFromChainId(target), state.rpc)],
           });
           await switchChainAsync({ chainId: target });
         }

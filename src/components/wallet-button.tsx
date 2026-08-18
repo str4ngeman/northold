@@ -10,7 +10,7 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useSession } from "@/hooks/use-session";
 import { formatAddress } from "@/lib/format";
-import { NETWORKS, networkIdFromChainId, walletAddChainParams, type NetworkId } from "@/lib/networks";
+import { appNetworkId, NETWORKS, networkIdFromChainId, walletAddChainParams, type NetworkId } from "@/lib/networks";
 
 export function WalletButton() {
   const router = useRouter();
@@ -35,7 +35,8 @@ export function WalletButton() {
   }, [user?.role, address, isConnected]);
 
   const targetChainId = catalog?.network.chainId ?? catalog?.protocol?.chainId;
-  const targetNetwork = (catalog?.network.id ?? (targetChainId ? networkIdFromChainId(targetChainId) : "sepolia")) as NetworkId;
+  const targetNetwork = (catalog?.network.id ??
+    (targetChainId ? networkIdFromChainId(targetChainId) : appNetworkId())) as NetworkId;
 
   async function ensureNetwork(id: NetworkId) {
     const def = NETWORKS[id];

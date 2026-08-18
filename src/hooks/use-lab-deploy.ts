@@ -10,7 +10,7 @@ import {
 import { deployContract, readContract, waitForTransactionReceipt, writeContract } from "wagmi/actions";
 
 import { decodeChainError } from "@/lib/chain-error";
-import { walletAddChainParams } from "@/lib/networks";
+import { appNetworkId, NETWORKS, networkIdFromChainId, walletAddChainParams } from "@/lib/networks";
 
 type Artifact = { abi: unknown[]; bytecode: `0x${string}` };
 type Artifacts = Record<string, Artifact>;
@@ -47,7 +47,7 @@ export function useLabDeploy() {
       if (!eth) throw new Error("Connect MetaMask first");
       await eth.request({
         method: "wallet_addEthereumChain",
-        params: [walletAddChainParams("sepolia", rpcUrl)],
+        params: [walletAddChainParams(networkIdFromChainId(target), rpcUrl)],
       });
       await switchChainAsync({ chainId: target });
     }
@@ -98,7 +98,7 @@ export function useLabDeploy() {
       deployment?: { contracts?: Record<string, string> } | null;
     };
 
-    const targetChain = state.network?.chainId ?? 11155111;
+    const targetChain = state.network?.chainId ?? NETWORKS[appNetworkId()].chainId;
     await ensureChain(targetChain, state.rpc);
     onLog(`deploying as ${address} on chain ${targetChain}`);
 

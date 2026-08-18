@@ -1,9 +1,22 @@
 import { mainnet, sepolia } from "viem/chains";
 
-export const NETWORK_IDS = ["sepolia", "mainnet"] as const;
-export type NetworkId = (typeof NETWORK_IDS)[number];
+import {
+  appNetworkId,
+  BLOCKCHAIN_NETWORK_IDS,
+  type BlockchainNetworkId,
+} from "@/lib/blockchain-network";
+
+export {
+  appNetworkId,
+  blockchainNetworkEnv,
+  isBlockchainNetworkPinned,
+  parseBlockchainNetwork,
+} from "@/lib/blockchain-network";
+
+export const NETWORK_IDS = BLOCKCHAIN_NETWORK_IDS;
+export type NetworkId = BlockchainNetworkId;
 export type NetworkMode = "lab" | "test" | "live";
-export const DEFAULT_NETWORK_ID: NetworkId = "sepolia";
+export const DEFAULT_NETWORK_ID: NetworkId = appNetworkId();
 
 export type NetworkTokenMeta = {
   address: `0x${string}`;

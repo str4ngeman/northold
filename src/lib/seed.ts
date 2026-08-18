@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 
+import { appNetworkId, isBlockchainNetworkPinned } from "@/lib/blockchain-network";
 import { BRAND, DEFAULT_BEARINGS } from "@/lib/brand";
 import { DAY_SECONDS } from "@/lib/math";
 import { Plan } from "@/lib/models/plan";
@@ -20,7 +21,7 @@ export async function seedDatabase() {
       referralBps: 500,
       supportEnabled: true,
       nextTokenId: 1,
-      activeNetwork: "sepolia",
+      activeNetwork: appNetworkId(),
       networks: {
         sepolia: {
           chainId: 11155111,
@@ -137,7 +138,11 @@ export async function seedDatabase() {
 }
 
 async function alignBrand() {
-  await Settings.updateMany({ activeNetwork: "anvil" }, { $set: { activeNetwork: "sepolia" } });
+  const network = appNetworkId();
+  await Settings.updateMany({ activeNetwork: "anvil" }, { $set: { activeNetwork: network } });
+  if (isBlockchainNetworkPinned()) {
+    await Settings.updateMany({ key: "app" }, { $set: { activeNetwork: network } });
+  }
   await Settings.updateMany(
     { siteName: { $in: ["Leagueto", "leagueto"] } },
     { $set: { siteName: process.env.NEXT_PUBLIC_APP_NAME || BRAND.name, tagline: BRAND.tagline } },

@@ -9,6 +9,7 @@ import {
   NETWORKS,
   defaultTokenMap,
   emptyProfile,
+  isBlockchainNetworkPinned,
   isNetworkId,
   networkIdFromChainId,
   serverRpcUrl,
@@ -147,6 +148,7 @@ export async function loadSettingsDoc() {
 }
 
 export async function getActiveNetworkId(): Promise<NetworkId> {
+  if (isBlockchainNetworkPinned()) return DEFAULT_NETWORK_ID;
   const settings = (await loadSettingsDoc()) as SettingsDoc | null;
   if (isNetworkId(settings?.activeNetwork)) return settings.activeNetwork;
   if (settings?.chainId) return networkIdFromChainId(settings.chainId);
@@ -155,7 +157,14 @@ export async function getActiveNetworkId(): Promise<NetworkId> {
 
 export async function getRuntimeNetwork(id?: NetworkId): Promise<RuntimeNetwork> {
   const settings = (await loadSettingsDoc()) as SettingsDoc | null;
-  const active = id ?? (isNetworkId(settings?.activeNetwork) ? settings.activeNetwork : undefined) ?? (settings?.chainId ? networkIdFromChainId(settings.chainId) : DEFAULT_NETWORK_ID);
+  const active =
+    id ??
+    (isBlockchainNetworkPinned()
+      ? DEFAULT_NETWORK_ID
+      : isNetworkId(settings?.activeNetwork)
+        ? settings.activeNetwork
+        : undefined) ??
+    (settings?.chainId ? networkIdFromChainId(settings.chainId) : DEFAULT_NETWORK_ID);
   const networks = migrateLegacy(settings ?? {});
   const profile = mergeProfile(active, networks[active]);
   const def = NETWORKS[active];
