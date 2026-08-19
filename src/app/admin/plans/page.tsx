@@ -184,7 +184,7 @@ export default function AdminPlans() {
       title="Lock bearings"
       description={
         vaultLive
-          ? "Edits write to Mongo, then the connected MetaMask wallet signs the vault update. Cards already minted keep the coupon they locked in."
+          ? "Edits write to Mongo, then the connected wallet signs the vault update. Cards already minted keep the coupon they locked in."
           : labUi
             ? "One row per bearing. Deploy from Lab to push these onto the hold."
             : "One row per bearing. Saving writes to the vault when it is live."
@@ -246,7 +246,7 @@ export default function AdminPlans() {
         title={creating ? "New bearing" : `Edit ${editing?.name ?? "bearing"}`}
         description={
           vaultLive
-            ? "APY and exit fee are percentages. Lock length is in days. Saving asks MetaMask to call updatePlan."
+            ? "APY and exit fee are percentages. Lock length is in days. Saving asks the connected wallet to call updatePlan."
             : "APY and exit fee are percentages. Lock length is in days."
         }
         onSubmit={submit}

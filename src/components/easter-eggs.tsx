@@ -60,7 +60,7 @@ export function EasterEggs({ children }: { children: ReactNode }) {
     const next = taps + 1;
     setTaps(next);
     if (next === 7) {
-      toast.success("The hold noticed you. Keep the bearing.");
+      toast.success("The seam noticed you. Keep digging.");
       setTaps(0);
     }
   }

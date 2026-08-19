@@ -1,148 +1,100 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { LabPage, LabStat, LogPane } from "@/components/lab/ui";
-import { CtaButton } from "@/components/ui/cta-button";
+import { LabPage } from "@/components/lab/ui";
 import { Surface } from "@/components/ui/surface";
-import { useLabExec } from "@/hooks/use-lab-exec";
 import { useLabState } from "@/hooks/use-lab-state";
-import { formatUsd } from "@/lib/format";
+import { formatAddress } from "@/lib/format";
 
-type Catalog = {
-  ok?: boolean;
-  plans?: {
-    id: number;
-    slug: string;
-    lockDays: number;
-    apyBps: number;
-    emergencyFeeBps: number;
-    minUsd: number;
-    maxUsd: number;
-    active: boolean;
-  }[];
-  assets?: { symbol: string; address: string; priceUsd: number }[];
-};
+const PROTOCOL = [
+  ["Vault", "vault"],
+  ["Card", "card"],
+  ["Oracle", "oracle"],
+  ["Lens", "lens"],
+] as const;
 
-type Snapshot = {
-  ok?: boolean;
-  snapshot?: {
-    cardsMinted: number;
-    tvlUsd: number;
-    treasury?: { symbol: string; amount: string }[];
-    referralBps: number;
-  };
-};
-
-export default function LabChainPage() {
-  const { state, refresh } = useLabState(4000);
-  const { lines, running, run } = useLabExec();
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [snap, setSnap] = useState<Snapshot | null>(null);
-
-  async function reloadViews() {
-    const [c, s] = await Promise.all([fetch("/api/lab/catalog"), fetch("/api/lab/snapshot")]);
-    setCatalog((await c.json()) as Catalog);
-    setSnap((await s.json()) as Snapshot);
-  }
-
-  useEffect(() => {
-    void reloadViews();
-  }, [state?.connected, state?.deployment?.timestamp]);
-
-  async function act(cmd: string, args: string[] = []) {
-    await run(cmd, args);
-    await refresh();
-    await reloadViews();
-  }
-
-  const live = Boolean(state?.connected);
+export default function LabContractsPage() {
+  const { state } = useLabState(8000);
+  const contracts = state?.deployment?.contracts;
+  const explorer = state?.network?.explorerUrl;
+  const assets = state?.assets ?? [];
 
   return (
     <LabPage
-      kicker="Chain"
-      title={state?.network?.name ?? "Sepolia"}
-      body="Read live blocks on Sepolia. Lab deploy writes vault and token addresses into this app."
+      kicker="Contracts"
+      title={state?.network?.shortLabel ?? "Protocol"}
+      body="Northold contracts on this chain. Tokens are the ones already in Admin — they are not deployed here."
     >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <LabStat label="RPC" value={live ? "Connected" : "Down"} live={live} hint={state?.rpc} />
-        <LabStat
-          label="Block time"
-          value={state?.time ? state.time.iso.slice(0, 19).replace("T", " ") : "—"}
-          hint={state?.block ? `block ${state.block}` : "no RPC"}
-        />
-        <LabStat
-          label="TVL"
-          value={snap?.snapshot ? formatUsd(snap.snapshot.tvlUsd) : "—"}
-          hint={snap?.snapshot ? `${snap.snapshot.cardsMinted} cards` : "deploy first"}
-        />
-        <LabStat
-          label="Coupon surplus"
-          value={
-            snap?.snapshot?.treasury?.length
-              ? snap.snapshot.treasury.map((row) => `${Number(row.amount).toLocaleString()} ${row.symbol}`).join(" · ")
-              : "—"
-          }
-        />
-      </div>
+      <p className="mb-4 text-xs text-[var(--ink-3)]">
+        {state?.connected ? `block ${state.block ?? "—"}` : "RPC down"} · {state?.rpc}
+      </p>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <CtaButton variant="ghost" disabled={running} onClick={() => void act("time")}>
-          Read time
-        </CtaButton>
-      </div>
-
-      {catalog?.plans?.length ? (
-        <div className="mt-8 grid gap-4 lg:grid-cols-2">
-          <Surface className="overflow-auto p-2">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-wider text-[var(--ink-3)]">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Plan</th>
-                  <th className="px-4 py-3 font-medium">Lock</th>
-                  <th className="px-4 py-3 font-medium">APY</th>
-                  <th className="px-4 py-3 font-medium">Fee</th>
+      <Surface className="overflow-auto p-1">
+        <table className="w-full text-left text-sm">
+          <thead className="text-[11px] uppercase tracking-wider text-[var(--ink-3)]">
+            <tr>
+              <th className="px-3 py-2 font-medium">Contract</th>
+              <th className="px-3 py-2 font-medium">Address</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PROTOCOL.map(([label, key]) => {
+              const addr = contracts?.[key];
+              return (
+                <tr key={key} className="border-t border-white/6">
+                  <td className="px-3 py-2">{label}</td>
+                  <td className="num px-3 py-2 text-[var(--ink-2)]">
+                    {addr && explorer ? (
+                      <a href={`${explorer}/address/${addr}`} target="_blank" rel="noreferrer" className="text-[var(--light)]">
+                        {formatAddress(addr)}
+                      </a>
+                    ) : addr ? (
+                      formatAddress(addr)
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {catalog.plans.map((p) => (
-                  <tr key={p.id} className="border-t border-white/6">
-                    <td className="px-4 py-3 capitalize">{p.slug}</td>
-                    <td className="px-4 py-3">{p.lockDays}d</td>
-                    <td className="num px-4 py-3">{p.apyBps / 100}%</td>
-                    <td className="num px-4 py-3">{p.emergencyFeeBps / 100}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Surface>
-          <Surface className="overflow-auto p-2">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase tracking-wider text-[var(--ink-3)]">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Asset</th>
-                  <th className="px-4 py-3 font-medium">Oracle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {catalog.assets?.map((a) => (
-                  <tr key={a.symbol} className="border-t border-white/6">
-                    <td className="px-4 py-3">
-                      {a.symbol}
-                      <p className="num mt-0.5 text-[11px] text-[var(--ink-3)]">{a.address}</p>
-                    </td>
-                    <td className="num px-4 py-3">{formatUsd(a.priceUsd, a.priceUsd >= 100 ? 0 : 2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Surface>
-        </div>
-      ) : null}
+              );
+            })}
+          </tbody>
+        </table>
+      </Surface>
 
-      <div className="mt-6">
-        <LogPane lines={lines} running={running} />
-      </div>
+      <p className="mt-6 mb-2 text-[11px] uppercase tracking-wider text-[var(--ink-3)]">Catalog tokens</p>
+      <Surface className="overflow-auto p-1">
+        <table className="w-full text-left text-sm">
+          <thead className="text-[11px] uppercase tracking-wider text-[var(--ink-3)]">
+            <tr>
+              <th className="px-3 py-2 font-medium">Token</th>
+              <th className="px-3 py-2 font-medium">Address</th>
+            </tr>
+          </thead>
+          <tbody>
+            {assets.length === 0 ? (
+              <tr>
+                <td className="px-3 py-3 text-[var(--ink-3)]" colSpan={2}>
+                  Set addresses in Admin → Tokens.
+                </td>
+              </tr>
+            ) : (
+              assets.map((a) => (
+                <tr key={a.slug} className="border-t border-white/6">
+                  <td className="px-3 py-2">{a.symbol}</td>
+                  <td className="num px-3 py-2 text-[var(--ink-2)]">
+                    {explorer ? (
+                      <a href={`${explorer}/address/${a.address}`} target="_blank" rel="noreferrer" className="text-[var(--light)]">
+                        {formatAddress(a.address)}
+                      </a>
+                    ) : (
+                      formatAddress(a.address)
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Surface>
     </LabPage>
   );
 }

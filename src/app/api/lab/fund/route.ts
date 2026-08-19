@@ -6,7 +6,7 @@ export async function POST() {
   const auth = await requireLab();
   if ("error" in auth) return auth.error;
   return labJson(
-    { error: "Fund from the connected MetaMask wallet. The server does not hold a deployer key." },
+    { error: "Fund from the connected wallet. The server does not hold a deployer key." },
     400,
   );
 }

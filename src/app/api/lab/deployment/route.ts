@@ -17,16 +17,12 @@ export async function POST(request: Request) {
       card?: string;
       oracle?: string;
       lens?: string;
-      usdt?: string;
-      usdc?: string;
-      weth?: string;
-      wbtc?: string;
     };
     plans?: { id: number; slug: string }[];
   };
 
   const contracts = body.contracts;
-  const required = ["vault", "card", "oracle", "lens", "usdt", "usdc", "weth", "wbtc"] as const;
+  const required = ["vault", "card", "oracle", "lens"] as const;
   if (!body.deployer || !isAddress(body.deployer) || !body.chainId || !contracts) {
     return labJson({ error: "Deployer, chainId, and contracts are required" }, 400);
   }
@@ -46,10 +42,6 @@ export async function POST(request: Request) {
         card: contracts.card as `0x${string}`,
         oracle: contracts.oracle as `0x${string}`,
         lens: contracts.lens as `0x${string}`,
-        usdt: contracts.usdt as `0x${string}`,
-        usdc: contracts.usdc as `0x${string}`,
-        weth: contracts.weth as `0x${string}`,
-        wbtc: contracts.wbtc as `0x${string}`,
       },
       plans: Array.isArray(body.plans) ? body.plans : [],
     });

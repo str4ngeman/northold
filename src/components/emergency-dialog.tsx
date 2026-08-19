@@ -35,32 +35,32 @@ export function EmergencyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-[1.75rem] border-white/10 bg-[#11161f]">
+      <DialogContent className="max-w-md rounded-none border-[var(--rule)] bg-[var(--slate)]">
         <DialogHeader>
-          <DialogTitle>Break the seal?</DialogTitle>
+          <DialogTitle className="display text-2xl">Abandon the shaft?</DialogTitle>
           <DialogDescription>
-            Emergency unlock takes {formatFee(view.plan.emergencyFeeBps)} of principal.
-            Unclaimed {view.token.symbol} ({formatTokenAmount(view.claimableReward, view.token.symbol)}) is forfeited. Already-claimed
-            yield stays in your wallet.
+            Abandoning early costs {formatFee(view.plan.emergencyFeeBps)} of principal.
+            Unlifted {view.token.symbol} ({formatTokenAmount(view.claimableReward, view.token.symbol)}) is forfeited. Coupon you
+            already lifted stays in your wallet.
           </DialogDescription>
         </DialogHeader>
-        <dl className="rounded-2xl bg-black/20 p-4 text-sm">
+        <dl className="border border-[var(--rule)] bg-[var(--pitch)] p-4 text-sm">
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">You get back</dt>
-            <dd>{formatTokenAmount(returned, view.token.symbol)}</dd>
+            <dt className="tag">You get back</dt>
+            <dd className="num">{formatTokenAmount(returned, view.token.symbol)}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Fee</dt>
-            <dd>{formatTokenAmount(fee, view.token.symbol)}</dd>
+            <dt className="tag">Fee</dt>
+            <dd className="num">{formatTokenAmount(fee, view.token.symbol)}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Forfeited yield</dt>
-            <dd>{formatTokenAmount(view.claimableReward, view.token.symbol)}</dd>
+            <dt className="tag">Forfeited coupon</dt>
+            <dd className="num">{formatTokenAmount(view.claimableReward, view.token.symbol)}</dd>
           </div>
         </dl>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Keep the lock
+            Keep it open
           </Button>
           <Button
             variant="destructive"

@@ -239,8 +239,8 @@ export default function AdminSettings() {
       title="Site configuration"
       description={
         labUi
-          ? "Sign in with email. Connect the deployer MetaMask wallet only when you need to sign a vault change. Lab deploy writes vault and token addresses here."
-          : "Sign in with email. Connect the deployer MetaMask wallet only when you need to sign a vault change."
+          ? "Sign in with email. Connect the deployer wallet only when you need to sign a vault change. Lab deploy writes vault and token addresses here."
+          : "Sign in with email. Connect the deployer wallet only when you need to sign a vault change."
       }
       action={
         <CtaButton className="h-11 px-5" onClick={() => settings && setOpen(true)}>
@@ -309,12 +309,12 @@ export default function AdminSettings() {
           </p>
           <p className="mt-1 text-sm text-[var(--ink-2)]">
             {ownerTx.address
-              ? `Connected MetaMask ${formatAddress(ownerTx.address)}${
+              ? `Connected wallet ${formatAddress(ownerTx.address)}${
                   network.deployerAddress && ownerTx.address.toLowerCase() === network.deployerAddress.toLowerCase()
                     ? " — this is the saved owner"
                     : " — connecting as admin saves this address"
                 }`
-              : "Connect the deployer MetaMask wallet to sign on-chain writes. Admin access is email and password."}
+              : "Connect the deployer wallet to sign on-chain writes. Admin access is email and password."}
           </p>
           <div className="mt-4">
             <WalletButton />
@@ -415,7 +415,7 @@ export default function AdminSettings() {
         <AdminField label="Reward label" hint="Yield is always paid in the locked token. This is display-only.">
           <input value={draft.rewardSymbol} onChange={(e) => setDraft({ ...draft, rewardSymbol: e.target.value })} />
         </AdminField>
-        <AdminField label="Referral %" hint="5 means 5%. If a vault is live, MetaMask signs setReferralBps first.">
+        <AdminField label="Referral %" hint="5 means 5%. If a vault is live, the connected wallet signs setReferralBps first.">
           <input
             value={String(draft.referralBps / 100)}
             onChange={(e) => setDraft({ ...draft, referralBps: Math.round(Number(e.target.value) * 100) })}

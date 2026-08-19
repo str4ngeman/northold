@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   }
   if (runtime.protocol) {
     return NextResponse.json(
-      { error: "This catalog is on-chain. Connect MetaMask and mint from Earn." },
+      { error: "This catalog is on-chain. Connect a wallet and mint a hold." },
       { status: 400 },
     );
   }

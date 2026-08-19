@@ -24,6 +24,7 @@ export type LabState = {
     contracts: Record<string, string>;
     plans: { id: number; slug: string }[];
   } | null;
+  assets?: { slug: string; symbol: string; address: string; decimals: number }[];
 };
 
 export function useLabState(pollMs = 4000) {

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         if (cmd === "deploy") {
           send({
             t: "log",
-            line: "Deploy from Lab → Deploy with the connected MetaMask wallet. The server does not hold a deployer key.",
+            line: "Use Lab → Deploy. The server does not hold a deployer key.",
           });
           send({ t: "done", code: 1 });
           controller.close();

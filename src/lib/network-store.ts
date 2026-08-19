@@ -97,14 +97,11 @@ function protocolFromProfile(id: NetworkId, profile: NetworkProfile): ProtocolCo
 
 function tokensFrom(id: NetworkId, profile: NetworkProfile): NetworkTokenMap {
   const file = readDeployment(NETWORKS[id].chainId);
-  const fromFile: NetworkTokenMap = file
-    ? {
-        usdt: { address: file.contracts.usdt, decimals: 6 },
-        usdc: { address: file.contracts.usdc, decimals: 6 },
-        weth: { address: file.contracts.weth, decimals: 18 },
-        wbtc: { address: file.contracts.wbtc, decimals: 8 },
-      }
-    : {};
+  const fromFile: NetworkTokenMap = {};
+  if (file?.contracts.usdt) fromFile.usdt = { address: file.contracts.usdt, decimals: 6 };
+  if (file?.contracts.usdc) fromFile.usdc = { address: file.contracts.usdc, decimals: 6 };
+  if (file?.contracts.weth) fromFile.weth = { address: file.contracts.weth, decimals: 18 };
+  if (file?.contracts.wbtc) fromFile.wbtc = { address: file.contracts.wbtc, decimals: 8 };
   return { ...fromFile, ...defaultTokenMap(id), ...(profile.tokens ?? {}) };
 }
 
@@ -268,16 +265,8 @@ export async function saveNetworkTokens(id: NetworkId, tokens: NetworkTokenMap) 
 
 export function deploymentFromRuntime(runtime: RuntimeNetwork): Deployment | null {
   const protocol = runtime.protocol;
-  const tokens = runtime.tokens;
   if (!protocol) return null;
-  const usdt = tokens.usdt?.address;
-  const usdc = tokens.usdc?.address;
-  const weth = tokens.weth?.address;
-  const wbtc = tokens.wbtc?.address;
-  if (!usdt || !usdc || !weth || !wbtc) {
-    const file = readDeployment(runtime.chainId);
-    return file;
-  }
+  const tokens = runtime.tokens;
   return {
     chainId: runtime.chainId,
     rpc: runtime.rpcUrl,
@@ -288,10 +277,10 @@ export function deploymentFromRuntime(runtime: RuntimeNetwork): Deployment | nul
       card: protocol.card,
       oracle: protocol.oracle,
       lens: protocol.lens,
-      usdt,
-      usdc,
-      weth,
-      wbtc,
+      ...(tokens.usdt?.address ? { usdt: tokens.usdt.address } : {}),
+      ...(tokens.usdc?.address ? { usdc: tokens.usdc.address } : {}),
+      ...(tokens.weth?.address ? { weth: tokens.weth.address } : {}),
+      ...(tokens.wbtc?.address ? { wbtc: tokens.wbtc.address } : {}),
     },
     plans: Object.entries(protocol.planIds).map(([slug, planId]) => ({ id: planId, slug })),
   };

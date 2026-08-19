@@ -4,6 +4,7 @@ import { animate } from "motion";
 import { motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { SEAMS } from "@/lib/seams";
 import { cn } from "@/lib/utils";
 
 export function FadeIn({
@@ -17,9 +18,9 @@ export function FadeIn({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 12, clipPath: "inset(0 100% 0 0)" }}
+      animate={{ opacity: 1, y: 0, clipPath: "inset(0 0% 0 0)" }}
+      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
       className={className}
     >
       {children}
@@ -50,55 +51,56 @@ export function CountUp({
   return <span className={cn("num", className)}>{format ? format(n) : n.toFixed(2)}</span>;
 }
 
+/** Square gauge — a dial would be out of place on this sheet. */
 export function ProgressRing({
   value,
   size = 72,
-  color = "var(--gain)",
+  color = "var(--flux)",
 }: {
   value: number;
   size?: number;
   color?: string;
 }) {
-  const r = 28;
-  const c = 2 * Math.PI * r;
   const pct = Math.min(1, Math.max(0, value));
+  const per = 68 * 4;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 72 72" className="-rotate-90">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="6" />
-      <motion.circle
-        cx="36"
-        cy="36"
-        r={r}
+    <svg width={size} height={size} viewBox="0 0 72 72">
+      <rect x="2" y="2" width="68" height="68" fill="none" stroke="rgba(237,231,220,.1)" strokeWidth="4" />
+      <motion.rect
+        x="2"
+        y="2"
+        width="68"
+        height="68"
         fill="none"
         stroke={color}
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeDasharray={c}
-        initial={{ strokeDashoffset: c }}
-        animate={{ strokeDashoffset: c * (1 - pct) }}
+        strokeWidth="4"
+        strokeDasharray={per}
+        initial={{ strokeDashoffset: per }}
+        animate={{ strokeDashoffset: per * (1 - pct) }}
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
       />
     </svg>
   );
 }
 
+/** Chips of ore thrown off a strike. */
 export function ConfettiBurst({ fire }: { fire: boolean }) {
   if (!fire) return null;
-  const bits = Array.from({ length: 28 }, (_, i) => i);
+  const bits = Array.from({ length: 30 }, (_, i) => i);
   return (
     <div className="pointer-events-none fixed inset-0 z-[80] overflow-hidden">
       {bits.map((i) => {
         const angle = (i / bits.length) * Math.PI * 2;
-        const dist = 140 + (i % 6) * 24;
+        const dist = 150 + (i % 6) * 26;
         return (
           <motion.span
             key={i}
-            className="absolute top-1/2 left-1/2 size-2 rounded-full"
-            style={{ background: i % 3 === 0 ? "#d9b56a" : i % 3 === 1 ? "#5ec4b6" : "#eef3f7" }}
-            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-            animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.4 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute left-1/2 top-1/2 size-1.5"
+            style={{ background: SEAMS[i % 3].color }}
+            initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
+            animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, rotate: 180 }}
+            transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
           />
         );
       })}

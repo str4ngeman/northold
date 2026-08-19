@@ -1,36 +1,58 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ArrowDown } from "lucide-react";
 
-import { CompassMark } from "@/components/brand/mark";
-import { CtaButton } from "@/components/ui/cta-button";
+import { DepthRule } from "@/components/kit";
+import { SEAMS } from "@/lib/seams";
 
 export function EmptyVault() {
-  const [spins, setSpins] = useState(0);
+  const [taps, setTaps] = useState(0);
 
   return (
-    <div className="flex flex-col items-center rounded-[2rem] bg-white/[0.03] px-6 py-16 text-center ring-1 ring-white/8">
+    <div className="panel ticked grid items-center gap-10 bg-[#0b0b0c] p-8 sm:grid-cols-[140px_1fr] lg:p-12">
       <button
         type="button"
-        className="grid size-24 place-items-center rounded-full bg-[var(--light)] text-[#16120a] shadow-[0_16px_40px_-12px_rgba(217,181,106,.7)]"
+        className="mx-auto"
+        aria-label="Depth scale"
         onClick={() => {
-          const next = spins + 1;
-          setSpins(next);
-          if (next === 5) {
-            toast.message("The compass already knows. Open a hold.");
-            setSpins(0);
+          const next = taps + 1;
+          setTaps(next);
+          if (next === 4) {
+            toast.message("Nothing down there yet. That is the only thing you can fix from here.");
+            setTaps(0);
           }
         }}
       >
-        <CompassMark size={40} />
+        <DepthRule height={220} />
       </button>
-      <h2 className="mt-6 text-2xl font-semibold">Nothing is holding yet</h2>
-      <p className="mt-2 max-w-md text-sm text-[var(--ink-2)]">
-        Lock a token, mint the card, and that same token starts accruing immediately. Claim whenever you like.
-      </p>
-      <div className="mt-6">
-        <CtaButton href="/app/stake">Open a hold</CtaButton>
+
+      <div>
+        <p className="tag">Empty ground</p>
+        <h2 className="display mt-4 text-3xl">No shafts open.</h2>
+        <p className="mt-4 max-w-md text-[0.9rem] leading-relaxed text-bone-2">
+          Sink capital into a seam and the coupon starts running the second it mints. You can lift accrued coupon the
+          next day if you want to watch the mechanism work before committing further.
+        </p>
+        <div className="mt-7 flex flex-wrap gap-2">
+          <Link href="/app/stake" className="act act-solid">
+            <span>Sink a shaft</span>
+            <ArrowDown className="size-3.5" />
+          </Link>
+          <Link href="/plans" className="act act-line">
+            <span>Read the seams</span>
+          </Link>
+        </div>
+        <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 border-t border-[var(--rule)] pt-5">
+          {SEAMS.map((seam) => (
+            <span key={seam.slug} className="num flex items-center gap-2 text-[10px] tracking-[0.12em] text-bone-3">
+              <span className="size-1.5" style={{ background: seam.color }} />
+              {seam.name.toUpperCase()} · {seam.depth}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

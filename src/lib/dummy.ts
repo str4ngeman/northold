@@ -147,3 +147,28 @@ export function materializeSeeds(now: number): PositionNft[] {
 }
 
 export const NEXT_TOKEN_ID = 4;
+
+export type DemoMonthEarn = {
+  year: number;
+  month: number;
+  usd: number;
+  tokenId: string;
+  tokenAmount: number;
+};
+
+/** Illustrated coupon ledger for the landing timeline. Not live volume. */
+export const DEMO_MONTHLY_EARNINGS: DemoMonthEarn[] = [
+  { year: 2026, month: 8, usd: 21_840, tokenId: "weth", tokenAmount: 6.24 },
+  { year: 2026, month: 7, usd: 18_420, tokenId: "wbtc", tokenAmount: 0.194 },
+  { year: 2026, month: 6, usd: 16_110, tokenId: "usdt", tokenAmount: 16_110 },
+  { year: 2026, month: 5, usd: 19_760, tokenId: "weth", tokenAmount: 5.645 },
+  { year: 2026, month: 4, usd: 14_280, tokenId: "usdc", tokenAmount: 14_280 },
+  { year: 2026, month: 3, usd: 17_940, tokenId: "wbtc", tokenAmount: 0.189 },
+  { year: 2026, month: 2, usd: 12_650, tokenId: "usdt", tokenAmount: 12_650 },
+  { year: 2026, month: 1, usd: 15_330, tokenId: "weth", tokenAmount: 4.38 },
+  { year: 2025, month: 12, usd: 22_410, tokenId: "wbtc", tokenAmount: 0.236 },
+  { year: 2025, month: 11, usd: 13_880, tokenId: "usdc", tokenAmount: 13_880 },
+  { year: 2025, month: 10, usd: 16_720, tokenId: "weth", tokenAmount: 4.777 },
+  { year: 2025, month: 9, usd: 11_540, tokenId: "usdt", tokenAmount: 11_540 },
+];
+

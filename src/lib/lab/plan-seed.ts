@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { isAddress } from "viem";
+
 import { connectDb } from "@/lib/db";
 import { deploymentsDir } from "@/lib/lab/paths";
-import type { PlanSeedFile, SeedPlan } from "@/lib/lab/plan-codec";
+import type { PlanSeedFile, SeedPlan, SeedToken } from "@/lib/lab/plan-codec";
 import { Plan } from "@/lib/models/plan";
 import { Settings } from "@/lib/models/settings";
 import { Token } from "@/lib/models/token";
@@ -34,6 +36,16 @@ export async function buildPlanSeed(): Promise<PlanSeedFile> {
     }
   }
 
+  const catalogTokens: SeedToken[] = tokens
+    .filter((token) => token.active !== false && isAddress(token.address) && token.address !== "0x0000000000000000000000000000000000000000")
+    .map((token) => ({
+      slug: token.slug,
+      symbol: token.symbol,
+      address: token.address as `0x${string}`,
+      decimals: token.decimals,
+      priceUsd: token.priceUsd,
+    }));
+
   return {
     referralBps: Number(settings?.referralBps ?? 500),
     plans: plans.map(
@@ -48,6 +60,7 @@ export async function buildPlanSeed(): Promise<PlanSeedFile> {
       }),
     ),
     oracle,
+    tokens: catalogTokens,
   };
 }
 

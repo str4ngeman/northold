@@ -4,7 +4,6 @@ import { bytecodeOf, loadArtifact } from "@/lib/lab/paths";
 export const dynamic = "force-dynamic";
 
 const CONTRACTS = [
-  { name: "MockERC20", file: "MockERC20.sol" },
   { name: "NortholdOracle", file: "NortholdOracle.sol" },
   { name: "PositionCard", file: "PositionCard.sol" },
   { name: "NortholdVault", file: "NortholdVault.sol" },

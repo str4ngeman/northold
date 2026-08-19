@@ -29,7 +29,7 @@ export function useVaultTx() {
       await switchChainAsync({ chainId: target });
     } catch {
       const eth = (window as unknown as { ethereum?: { request: (args: unknown) => Promise<unknown> } }).ethereum;
-      if (!eth) throw new Error("MetaMask is not available");
+      if (!eth) throw new Error("No browser wallet available");
       await eth.request({
         method: "wallet_addEthereumChain",
         params: [walletAddChainParams(networkIdFromChainId(target), rpcUrl)],
@@ -54,7 +54,7 @@ export function useVaultTx() {
 
   async function mint(catalog: Catalog, assetId: string, planId: string, amountInput: string) {
     if (!catalog.protocol) throw new Error("Vault is not deployed on this network.");
-    if (!address) throw new Error("Connect MetaMask first");
+    if (!address) throw new Error("Connect a wallet first");
     const token = catalog.tokens.find((item) => item.id === assetId);
     const plan = catalog.plans.find((item) => item.id === planId);
     const onChainId = plan?.onChainId ?? catalog.protocol.planIds[planId];
@@ -90,7 +90,7 @@ export function useVaultTx() {
 
   async function claim(catalog: Catalog, tokenId: number) {
     if (!catalog.protocol) throw new Error("Vault is not deployed");
-    if (!address) throw new Error("Connect MetaMask first");
+    if (!address) throw new Error("Connect a wallet first");
     await ensureChain(catalog.protocol.chainId, catalog.protocol.rpcUrl);
     return send({
       address: catalog.protocol.vault,
@@ -103,7 +103,7 @@ export function useVaultTx() {
 
   async function unlock(catalog: Catalog, tokenId: number) {
     if (!catalog.protocol) throw new Error("Vault is not deployed");
-    if (!address) throw new Error("Connect MetaMask first");
+    if (!address) throw new Error("Connect a wallet first");
     await ensureChain(catalog.protocol.chainId, catalog.protocol.rpcUrl);
     return send({
       address: catalog.protocol.vault,
@@ -116,7 +116,7 @@ export function useVaultTx() {
 
   async function emergencyExit(catalog: Catalog, tokenId: number) {
     if (!catalog.protocol) throw new Error("Vault is not deployed");
-    if (!address) throw new Error("Connect MetaMask first");
+    if (!address) throw new Error("Connect a wallet first");
     await ensureChain(catalog.protocol.chainId, catalog.protocol.rpcUrl);
     return send({
       address: catalog.protocol.vault,
@@ -129,7 +129,7 @@ export function useVaultTx() {
 
   async function transferCard(catalog: Catalog, tokenId: number, to: Address) {
     if (!catalog.protocol) throw new Error("Vault is not deployed");
-    if (!address) throw new Error("Connect MetaMask first");
+    if (!address) throw new Error("Connect a wallet first");
     await ensureChain(catalog.protocol.chainId, catalog.protocol.rpcUrl);
     return send({
       address: catalog.protocol.card,

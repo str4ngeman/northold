@@ -101,7 +101,7 @@ export function useOwnerTx() {
   const { catalog, refresh } = useCatalogRefresh();
 
   async function ensure() {
-    if (!address) throw new Error("Connect the deployer MetaMask wallet");
+    if (!address) throw new Error("Connect the deployer wallet");
     const protocol = catalog?.protocol;
     if (!protocol) throw new Error("Vault is not deployed yet");
     if (chainId !== protocol.chainId) {
@@ -109,7 +109,7 @@ export function useOwnerTx() {
         await switchChainAsync({ chainId: protocol.chainId });
       } catch {
         const eth = (window as unknown as { ethereum?: { request: (args: unknown) => Promise<unknown> } }).ethereum;
-        if (!eth) throw new Error("MetaMask is not available");
+        if (!eth) throw new Error("No browser wallet available");
         await eth.request({
           method: "wallet_addEthereumChain",
           params: [walletAddChainParams(protocol.networkId, protocol.rpcUrl)],

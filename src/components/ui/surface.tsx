@@ -14,8 +14,8 @@ export function Surface({
   return (
     <div
       className={cn(
-        "rounded-[1.75rem] bg-[var(--bg-raise)]/85 ring-1 ring-white/8 backdrop-blur-xl shadow-[0_24px_60px_-28px_rgba(0,0,0,.75)]",
-        hover && "transition-transform duration-300 hover:-translate-y-1 hover:ring-white/14",
+        "panel ticked",
+        hover && "transition-colors duration-300 hover:border-bone-3 hover:bg-[var(--slate-2)]",
         className,
       )}
     >

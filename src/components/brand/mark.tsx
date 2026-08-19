@@ -1,6 +1,18 @@
 import { cn } from "@/lib/utils";
 
-export function CompassMark({ className, size = 18 }: { className?: string; size?: number }) {
+/**
+ * The strata mark: one square core, cut into three seams. The deepest band is
+ * solid because that is the one you have to commit to.
+ */
+export function StrataMark({
+  className,
+  size = 18,
+  colored,
+}: {
+  className?: string;
+  size?: number;
+  colored?: boolean;
+}) {
   return (
     <svg
       width={size}
@@ -10,10 +22,17 @@ export function CompassMark({ className, size = 18 }: { className?: string; size
       aria-hidden="true"
       className={cn("shrink-0", className)}
     >
-      <circle cx="12" cy="12" r="9.2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 3.6 L14.15 12 L12 10.7 L9.85 12 Z" fill="currentColor" />
-      <path d="M12 20.4 L9.85 12 L12 13.3 L14.15 12 Z" fill="currentColor" opacity="0.38" />
-      <circle cx="12" cy="12" r="1.55" fill="currentColor" />
+      <rect x="2.6" y="2.6" width="18.8" height="18.8" stroke="currentColor" strokeWidth="1.6" />
+      {colored ? (
+        <>
+          <rect x="3.4" y="3.4" width="17.2" height="5.2" fill="#BFAE97" opacity="0.55" />
+          <rect x="3.4" y="9.4" width="17.2" height="5.2" fill="#C9F227" opacity="0.75" />
+          <rect x="3.4" y="15.4" width="17.2" height="5.2" fill="#E4552E" />
+        </>
+      ) : (
+        <rect x="3.4" y="15.4" width="17.2" height="5.2" fill="currentColor" />
+      )}
+      <path d="M2.6 9h18.8M2.6 15h18.8" stroke="currentColor" strokeWidth="1.3" />
     </svg>
   );
 }

@@ -1,16 +1,18 @@
 "use client";
 
-import { CountUp, FadeIn } from "@/components/motion";
+import Link from "next/link";
+import { ArrowDown } from "lucide-react";
+import { useAccount } from "wagmi";
+
+import { Counter, Wipe } from "@/components/kit";
 import { EmptyVault } from "@/components/dashboard/empty-vault";
 import { PositionCard } from "@/components/dashboard/position-card";
-import { CtaButton } from "@/components/ui/cta-button";
-import { Surface } from "@/components/ui/surface";
 import { WalletButton } from "@/components/wallet-button";
 import { useNow } from "@/hooks/use-now";
 import { usePositions } from "@/hooks/use-positions";
 import { useSession } from "@/hooks/use-session";
-import { formatUsd } from "@/lib/format";
-import { useAccount } from "wagmi";
+import { formatTokenAmount, formatUsd } from "@/lib/format";
+import { seamOf } from "@/lib/seams";
 
 export default function VaultPage() {
   const now = useNow();
@@ -19,59 +21,103 @@ export default function VaultPage() {
   const { views, catalog } = usePositions(now);
 
   const locked = views.reduce((sum, v) => sum + v.principalUsd, 0);
-  const claimableUsd = views.reduce((sum, v) => sum + v.claimableUsd, 0);
-  const canSeeVault = Boolean(user || (catalog?.protocol && address));
+  const liftable = views.reduce((sum, v) => sum + v.claimableUsd, 0);
+  const lifted = views.reduce((sum, v) => sum + v.claimedReward * v.token.priceUsd, 0);
+  const canSee = Boolean(user || (catalog?.protocol && address));
 
-  if (loading) return <div className="h-40 animate-pulse rounded-[1.75rem] bg-white/5" />;
+  if (loading) {
+    return <div className="panel h-48 animate-pulse bg-[var(--slate)]" />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
-      <FadeIn className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <Wipe className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Hold</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your positions</h1>
-          <p className="mt-2 max-w-lg text-sm text-[var(--ink-2)]">
+          <div className="flex items-center gap-4">
+            <span className="tag whitespace-nowrap">Vault</span>
+            <span className="h-px w-16 bg-[var(--rule)]" />
+          </div>
+          <h1 className="display mt-5 text-[clamp(2rem,4.6vw,3rem)]">Your workings.</h1>
+          <p className="mt-3 max-w-lg text-[0.9rem] leading-relaxed text-bone-2">
             {catalog?.protocol
-              ? `Cards on this hold are live NFTs on ${catalog.network.shortLabel}. Claim and unlock confirm in MetaMask.`
-              : "Each card is a live lock. Claim yield in the token you held."}
+              ? `Every shaft below is a live position on ${catalog.network.shortLabel}. Lifting and hauling confirm in your wallet.`
+              : "Every shaft below is a live position. Lift accrued coupon on any day of the term."}
           </p>
         </div>
-        <CtaButton href="/app/stake">Open a new hold</CtaButton>
-      </FadeIn>
+        <Link href="/app/stake" className="act act-solid shrink-0">
+          <span>Sink a shaft</span>
+          <ArrowDown className="size-3.5" />
+        </Link>
+      </Wipe>
 
-      {canSeeVault && views.length > 0 && (
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Stat label="Locked value" value={locked} money />
-          <Stat label="Claimable" value={claimableUsd} money accent />
-          <Stat label="Open positions" value={views.length} />
-        </div>
-      )}
+      {canSee && views.length > 0 ? (
+        <Wipe delay={0.08} className="mt-10 grid gap-px bg-[var(--rule)] sm:grid-cols-3">
+          <Stat label="Under ground" value={locked} money />
+          <Stat label="Liftable now" value={liftable} money accent />
+          <Stat label="Lifted to date" value={lifted} money />
+        </Wipe>
+      ) : null}
 
-      {!canSeeVault ? (
-        <Surface className="mt-10 p-8">
-          <h2 className="text-2xl font-semibold">Sign in to see your hold</h2>
-          <p className="mt-2 text-sm text-[var(--ink-2)]">
+      {!canSee ? (
+        <div className="panel ticked mt-12 bg-[#0b0b0c] p-8 lg:p-12">
+          <p className="tag">Locked out</p>
+          <h2 className="display mt-4 text-3xl">Sign in to read your register.</h2>
+          <p className="mt-4 max-w-md text-[0.9rem] leading-relaxed text-bone-2">
             {catalog?.protocol
-              ? `Sign in with email, then connect MetaMask on ${catalog.network.shortLabel} to mint and claim.`
-              : "Sign in with email and password. Connect MetaMask when you are ready to lock."}
+              ? `Sign in with email, then connect a wallet on ${catalog.network.shortLabel} to sink and lift.`
+              : "Sign in with email and password. Connect a wallet when you are ready to sink."}
           </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <CtaButton href="/login">Sign in</CtaButton>
+          <div className="mt-7 flex flex-wrap gap-2">
+            <Link href="/login" className="act act-solid">
+              <span>Sign in</span>
+            </Link>
             <WalletButton />
           </div>
-        </Surface>
+        </div>
       ) : views.length === 0 ? (
-        <div className="mt-10">
+        <div className="mt-12">
           <EmptyVault />
         </div>
       ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {views.map((view, i) => (
-            <FadeIn key={view.tokenId} delay={i * 0.05}>
-              <PositionCard view={view} href={`/app/position/${view.tokenId}`} />
-            </FadeIn>
-          ))}
-        </div>
+        <>
+          <Wipe delay={0.12} className="mt-12 flex items-center gap-4">
+            <span className="tag whitespace-nowrap">Open shafts</span>
+            <span className="h-px flex-1 bg-[var(--rule)]" />
+            <span className="tag whitespace-nowrap">{views.length} on register</span>
+          </Wipe>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {views.map((view, i) => (
+              <Wipe key={view.tokenId} delay={i * 0.05} className="h-full">
+                <PositionCard view={view} href={`/app/position/${view.tokenId}`} />
+              </Wipe>
+            ))}
+          </div>
+
+          <div className="mt-10 border-t border-[var(--rule)] pt-6">
+            <p className="tag">By seam</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              {["pulse", "horizon", "apex"].map((slug) => {
+                const seam = seamOf(slug);
+                const rows = views.filter((v) => v.plan.id === slug);
+                const sum = rows.reduce((n, v) => n + v.principalUsd, 0);
+                const claim = rows.reduce((n, v) => n + v.claimableReward, 0);
+                const symbol = rows[0]?.token.symbol ?? "";
+                return (
+                  <div key={slug} className="flex items-baseline justify-between gap-3 border-b border-[var(--rule)] pb-3">
+                    <span className="num flex items-center gap-2 text-[10px] tracking-[0.12em]" style={{ color: seam.color }}>
+                      <span className="size-1.5" style={{ background: seam.color }} />
+                      {seam.name.toUpperCase()}
+                    </span>
+                    <span className="num text-[11px] text-bone-2">
+                      {rows.length ? formatUsd(sum, 0) : "—"}
+                      {rows.length && claim > 0 ? ` · +${formatTokenAmount(claim, symbol)}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -79,11 +125,11 @@ export default function VaultPage() {
 
 function Stat({ label, value, accent, money }: { label: string; value: number; accent?: boolean; money?: boolean }) {
   return (
-    <Surface className="p-5">
-      <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${accent ? "text-[var(--gain)]" : ""}`}>
-        <CountUp value={value} format={money ? (n) => formatUsd(n) : (n) => String(Math.round(n))} />
+    <div className="bg-[#0b0b0c] p-5">
+      <p className="tag">{label}</p>
+      <p className={`mt-2.5 text-2xl ${accent ? "text-flux" : "text-bone"}`}>
+        <Counter value={value} format={money ? (n) => formatUsd(n) : (n) => String(Math.round(n))} />
       </p>
-    </Surface>
+    </div>
   );
 }

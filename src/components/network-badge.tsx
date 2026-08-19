@@ -9,29 +9,33 @@ export function NetworkBadge({ className }: { className?: string }) {
   const labUi = useLabUi();
   if (!catalog?.network) return null;
   const { mode, shortLabel } = catalog.network;
+
+  const base =
+    "num inline-flex items-center gap-2 border px-2.5 py-1 text-[9px] uppercase tracking-[0.16em]";
+
   if (!labUi) {
     return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium bg-white/8 text-[var(--ink-2)]",
-          className,
-        )}
-      >
-        <span className="size-1.5 rounded-full bg-current" />
+      <span className={cn(base, "border-[var(--rule)] text-bone-3", className)}>
+        <span className="size-1.5 bg-current" />
         {shortLabel}
       </span>
     );
   }
+
   const label = mode === "lab" ? "Local" : mode === "test" ? "Test" : "Live";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
-        mode === "live" ? "bg-[var(--loss)]/15 text-[var(--loss)]" : mode === "test" ? "bg-[var(--light)]/15 text-[var(--light)]" : "bg-white/8 text-[var(--ink-2)]",
+        base,
+        mode === "live"
+          ? "border-ember/50 text-ember"
+          : mode === "test"
+            ? "border-flux/50 text-flux"
+            : "border-[var(--rule)] text-bone-3",
         className,
       )}
     >
-      <span className="size-1.5 rounded-full bg-current" />
+      <span className={cn("size-1.5 bg-current", mode === "live" && "seep")} />
       {label} · {shortLabel}
     </span>
   );

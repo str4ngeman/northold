@@ -7,7 +7,12 @@ import { Plan } from "@/lib/models/plan";
 import { Settings } from "@/lib/models/settings";
 import { Token } from "@/lib/models/token";
 import { getRuntimeNetwork, publicNetworkView } from "@/lib/network-store";
-import type { Plan as PlanType, ProtocolConfig, Token as TokenType } from "@/lib/types";
+import type {
+  AppNetworkView,
+  Plan as PlanType,
+  ProtocolConfig,
+  Token as TokenType,
+} from "@/lib/types";
 
 export type Catalog = {
   plans: PlanType[];

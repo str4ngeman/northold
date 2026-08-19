@@ -10,7 +10,7 @@ export async function saveWalletDeployment(input: {
   deployer: string;
   chainId: number;
   rpc?: string;
-  contracts: Deployment["contracts"];
+  contracts: Pick<Deployment["contracts"], "vault" | "card" | "oracle" | "lens">;
   plans: { id: number; slug: string }[];
 }) {
   if (!isAddress(input.deployer)) throw new Error("Deployer is not a valid address");
@@ -19,13 +19,6 @@ export async function saveWalletDeployment(input: {
   const networkId: NetworkId = networkIdFromChainId(input.chainId);
   const planIds: Record<string, number> = {};
   for (const plan of input.plans) planIds[plan.slug] = plan.id;
-
-  const tokens: NetworkTokenMap = {
-    usdt: { address: input.contracts.usdt, decimals: 6 },
-    usdc: { address: input.contracts.usdc, decimals: 6 },
-    weth: { address: input.contracts.weth, decimals: 18 },
-    wbtc: { address: input.contracts.wbtc, decimals: 8 },
-  };
 
   await switchActiveNetwork(networkId);
 
@@ -41,13 +34,11 @@ export async function saveWalletDeployment(input: {
     oracleAddress: input.contracts.oracle,
     lensAddress: input.contracts.lens,
     protocolPlans: planIds,
-    tokens,
   });
 
   return {
     vault: input.contracts.vault,
     deployer: deployer as Address,
-    tokens: Object.entries(tokens).map(([slug, meta]) => `${slug}=${meta?.address}`),
     plans: planIds,
     chainId: input.chainId,
     networkId,
@@ -76,12 +67,12 @@ export async function syncDeploymentToDb(chainId?: number) {
     }
   }
 
-  const tokens: NetworkTokenMap = {
-    usdt: { address: deployment.contracts.usdt, decimals: 6 },
-    usdc: { address: deployment.contracts.usdc, decimals: 6 },
-    weth: { address: deployment.contracts.weth, decimals: 18 },
-    wbtc: { address: deployment.contracts.wbtc, decimals: 8 },
-  };
+  const tokens: NetworkTokenMap = {};
+  const c = deployment.contracts;
+  if (c.usdt) tokens.usdt = { address: c.usdt, decimals: 6 };
+  if (c.usdc) tokens.usdc = { address: c.usdc, decimals: 6 };
+  if (c.weth) tokens.weth = { address: c.weth, decimals: 18 };
+  if (c.wbtc) tokens.wbtc = { address: c.wbtc, decimals: 8 };
 
   const nextTokenId = await readNextTokenId(deployment);
   await patchNetworkProfile(networkId, {
@@ -91,7 +82,7 @@ export async function syncDeploymentToDb(chainId?: number) {
     oracleAddress: deployment.contracts.oracle,
     lensAddress: deployment.contracts.lens,
     protocolPlans: planIds,
-    tokens,
+    ...(Object.keys(tokens).length ? { tokens } : {}),
     nextTokenId,
     deployerAddress: deployment.deployer,
   });

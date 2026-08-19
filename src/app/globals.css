@@ -4,126 +4,353 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ================================================================
+   NORTHOLD — survey sheet
+   A dark basalt ground, bone ink, and three seam colours that run
+   cool at the surface to hot at depth. Nothing is rounded, nothing
+   glows for decoration. Every rule is 1px and means something.
+   ================================================================ */
+
 :root {
-  --bg: #07090f;
-  --bg-raise: #11161f;
-  --bg-sink: #05070b;
-  --ink: #eef3f7;
-  --ink-2: rgba(238, 243, 247, 0.68);
-  --ink-3: rgba(238, 243, 247, 0.42);
-  --line: rgba(238, 243, 247, 0.09);
-  --light: #d9b56a;
-  --accent: #b8954a;
-  --gain: #5ec4b6;
-  --loss: #f07167;
-  --radius: 1.35rem;
-  --background: var(--bg);
-  --foreground: var(--ink);
-  --card: var(--bg-raise);
-  --card-foreground: var(--ink);
-  --popover: #151b26;
-  --popover-foreground: var(--ink);
-  --primary: var(--light);
-  --primary-foreground: #16120a;
-  --secondary: var(--bg-raise);
-  --secondary-foreground: var(--ink);
-  --muted: #151b26;
-  --muted-foreground: var(--ink-2);
-  --accent-foreground: var(--ink);
-  --destructive: var(--loss);
-  --border: var(--line);
-  --input: var(--line);
-  --ring: var(--light);
+  /* ground */
+  --basalt: #0b0b0c;
+  --pitch: #060607;
+  --slate: #131316;
+  --slate-2: #1a1a1e;
+
+  /* ink */
+  --bone: #ede7dc;
+  --bone-2: rgba(237, 231, 220, 0.6);
+  --bone-3: rgba(237, 231, 220, 0.34);
+  --rule: rgba(237, 231, 220, 0.11);
+  --rule-2: rgba(237, 231, 220, 0.055);
+
+  /* seams, surface to depth */
+  --silt: #bfae97;
+  --flux: #c9f227;
+  --ember: #e4552e;
+  --frost: #8fb3c9;
+
+  --gain: var(--flux);
+  --loss: var(--ember);
+
+  --radius: 2px;
+
+  /* shadcn bridge — admin and lab keep working */
+  --background: var(--basalt);
+  --foreground: var(--bone);
+  --card: var(--slate);
+  --card-foreground: var(--bone);
+  --popover: var(--slate-2);
+  --popover-foreground: var(--bone);
+  --primary: var(--bone);
+  --primary-foreground: #0b0b0c;
+  --secondary: var(--slate);
+  --secondary-foreground: var(--bone);
+  --muted: var(--slate);
+  --muted-foreground: var(--bone-2);
+  --accent: var(--slate-2);
+  --accent-foreground: var(--bone);
+  --destructive: var(--ember);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--flux);
+
+  /* legacy aliases still referenced by admin/lab screens */
+  --bg: var(--basalt);
+  --bg-raise: var(--slate);
+  --bg-sink: var(--pitch);
+  --ink: var(--bone);
+  --ink-2: var(--bone-2);
+  --ink-3: var(--bone-3);
+  --line: var(--rule);
+  --light: var(--flux);
 }
 
 @theme inline {
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --color-background: var(--bg);
-  --color-foreground: var(--ink);
-  --color-primary: var(--light);
-  --color-primary-foreground: #16120a;
-  --color-muted: #151b26;
-  --color-muted-foreground: var(--ink-2);
-  --color-border: var(--line);
-  --color-ring: var(--light);
-  --color-popover: #151b26;
-  --color-popover-foreground: var(--ink);
-  --color-destructive: var(--loss);
-  --color-input: var(--line);
-  --radius-lg: 1.35rem;
-  --radius-xl: 1.75rem;
+  --font-display: var(--font-display);
+
+  --color-basalt: var(--basalt);
+  --color-pitch: var(--pitch);
+  --color-slate: var(--slate);
+  --color-bone: var(--bone);
+  --color-bone-2: var(--bone-2);
+  --color-bone-3: var(--bone-3);
+  --color-rule: var(--rule);
+  --color-silt: var(--silt);
+  --color-flux: var(--flux);
+  --color-ember: var(--ember);
+  --color-frost: var(--frost);
+
+  --color-background: var(--basalt);
+  --color-foreground: var(--bone);
+  --color-primary: var(--bone);
+  --color-primary-foreground: #0b0b0c;
+  --color-muted: var(--slate);
+  --color-muted-foreground: var(--bone-2);
+  --color-border: var(--rule);
+  --color-ring: var(--flux);
+  --color-popover: var(--slate-2);
+  --color-popover-foreground: var(--bone);
+  --color-destructive: var(--ember);
+  --color-input: var(--rule);
+
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 3px;
 }
 
 * { box-sizing: border-box; }
-
 html, body { min-height: 100%; }
 
 body {
   margin: 0;
-  color: var(--ink);
-  background:
-    radial-gradient(1100px 560px at 92% -12%, rgba(217, 181, 106, 0.16), transparent 54%),
-    radial-gradient(860px 480px at -14% 22%, rgba(94, 196, 182, 0.1), transparent 48%),
-    var(--bg);
+  color: var(--bone);
+  background: var(--basalt);
   font-family: var(--font-sans), system-ui, sans-serif;
+  font-feature-settings: "cv05" 1, "ss03" 1;
   -webkit-font-smoothing: antialiased;
 }
 
-html[data-aurora="true"] body {
-  background:
-    radial-gradient(1000px 620px at 72% -12%, rgba(217, 181, 106, 0.28), transparent 52%),
-    radial-gradient(720px 440px at 8% 84%, rgba(94, 196, 182, 0.2), transparent 46%),
-    var(--bg);
+::selection { background: var(--flux); color: #0b0b0c; }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--pitch); }
+::-webkit-scrollbar-thumb { background: rgba(237, 231, 220, 0.14); }
+::-webkit-scrollbar-thumb:hover { background: var(--flux); }
+
+@layer components {
+  /* ---------------------------------------------------------------- */
+  /* Type                                                              */
+  /* ---------------------------------------------------------------- */
+
+  .display {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    line-height: 0.94;
+  }
+
+  /* Every label on the sheet is monospaced, small, and spaced out. */
+  .tag {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--bone-3);
+  }
+
+  .tag-lit { color: var(--flux); }
+
+  .num {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Sheet surfaces                                                    */
+  /* ---------------------------------------------------------------- */
+
+  /* A panel is a cut-out of the sheet: one hairline, no radius, no glow. */
+  .panel {
+    position: relative;
+    background: color-mix(in oklab, var(--slate) 72%, transparent);
+    border: 1px solid var(--rule);
+  }
+
+  .panel-flat { background: transparent; border: 1px solid var(--rule); }
+
+  /* Survey ticks in the corners. The house signature. */
+  .ticked::before,
+  .ticked::after {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    pointer-events: none;
+    border-color: var(--bone-3);
+  }
+  .ticked::before { top: -1px; left: -1px; border-top: 1px solid; border-left: 1px solid; }
+  .ticked::after { bottom: -1px; right: -1px; border-bottom: 1px solid; border-right: 1px solid; }
+
+  /* Fine graph paper, used behind hero and map furniture. */
+  .graticule {
+    background-image:
+      linear-gradient(to right, var(--rule-2) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--rule-2) 1px, transparent 1px);
+    background-size: 88px 88px;
+  }
+
+  .graticule-fine {
+    background-image:
+      linear-gradient(to right, var(--rule-2) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--rule-2) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Diagonal hatch — marks unavailable ground and disabled controls. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(237, 231, 220, 0.07) 0 1px,
+      transparent 1px 7px
+    );
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Controls                                                          */
+  /* ---------------------------------------------------------------- */
+
+  .act {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    height: 2.875rem;
+    padding: 0 1.25rem;
+    overflow: hidden;
+    border: 1px solid transparent;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.28s ease, background-color 0.28s ease, border-color 0.28s ease;
+  }
+  .act:disabled { opacity: 0.35; pointer-events: none; }
+
+  /* The fill wipes up from the floor of the button. */
+  .act::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .act:hover::before { transform: scaleY(1); }
+  .act > * { position: relative; }
+
+  .act-solid { background: var(--bone); color: #0b0b0c; }
+  .act-solid::before { background: var(--flux); }
+
+  .act-line { border-color: var(--rule); color: var(--bone); }
+  .act-line::before { background: var(--bone); }
+  .act-line:hover { color: #0b0b0c; border-color: var(--bone); }
+
+  .act-quiet { color: var(--bone-2); }
+  .act-quiet:hover { color: var(--bone); }
+
+  .act-warn { border-color: color-mix(in oklab, var(--ember) 45%, transparent); color: var(--ember); }
+  .act-warn::before { background: var(--ember); }
+  .act-warn:hover { color: #0b0b0c; border-color: var(--ember); }
+
+  /* Inputs read like a field notebook: a baseline, not a box. */
+  .field { display: flex; flex-direction: column; gap: 0.5rem; }
+  .field > span:first-child,
+  .field .label {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--bone-3);
+  }
+  .field input:not([type="checkbox"]):not([type="range"]),
+  .field textarea,
+  .field select {
+    height: 2.875rem;
+    width: 100%;
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    background: var(--pitch);
+    color: var(--bone);
+    padding: 0 0.85rem;
+    outline: none;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.25s ease;
+  }
+  .field input:focus,
+  .field textarea:focus,
+  .field select:focus { border-color: var(--flux); }
 }
 
-::selection { background: var(--light); color: #16120a; }
-
-.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono), ui-monospace, monospace; }
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.field > span:first-child,
-.field .label {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-.field input:not([type="checkbox"]),
-.field textarea,
-.field select {
-  height: 2.85rem;
-  width: 100%;
-  border: 0;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--ink);
-  padding: 0 0.95rem;
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2px;
+  background: var(--rule);
   outline: none;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-.field input:focus,
-.field textarea:focus,
-.field select:focus {
-  box-shadow: inset 0 0 0 1px rgba(217, 181, 106, 0.55);
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 3px;
+  height: 22px;
+  background: var(--flux);
+  cursor: ew-resize;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 3px;
+  height: 22px;
+  border: 0;
+  border-radius: 0;
+  background: var(--flux);
+  cursor: ew-resize;
 }
 
-@keyframes float-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+/* ---------------------------------------------------------------- */
+/* Motion                                                            */
+/* ---------------------------------------------------------------- */
+
+@keyframes tick-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-@keyframes spin-slow { to { transform: rotate(360deg); } }
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 181, 106, 0.18); }
-  50% { box-shadow: 0 0 0 10px rgba(217, 181, 106, 0); }
+@keyframes seep {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@keyframes drift-x {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
-.float-slow { animation: float-slow 5.5s ease-in-out infinite; }
-.spin-slow { animation: spin-slow 18s linear infinite; }
+@layer components {
+  .seep { animation: seep 2.6s ease-in-out infinite; }
+}
+
+/* Names printed straight onto the ground must survive whatever is under them. */
+@layer components {
+  .map-label {
+  text-shadow:
+    -1px -1px 0 #060607,
+    1px -1px 0 #060607,
+    -1px 1px 0 #060607,
+    1px 1px 0 #060607,
+    0 0 9px rgba(6, 6, 7, 1),
+      0 0 20px rgba(6, 6, 7, 0.9);
+  }
+}
+
+/* Film of dust over the whole sheet. */
+@layer components {
+  .dust {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

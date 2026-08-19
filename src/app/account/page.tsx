@@ -1,14 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAccount, useDisconnect } from "wagmi";
-import { Copy, Gift } from "lucide-react";
+import { Copy } from "lucide-react";
 
-import { CtaButton } from "@/components/ui/cta-button";
-import { FadeIn } from "@/components/motion";
-import { Surface } from "@/components/ui/surface";
+import { Row, Wipe } from "@/components/kit";
 import { WalletButton } from "@/components/wallet-button";
 import { useSession } from "@/hooks/use-session";
 import { formatAddress } from "@/lib/format";
@@ -34,14 +33,16 @@ export default function AccountPage() {
       .then(setRefs);
   }, [user]);
 
-  if (loading) return <div className="h-40 animate-pulse rounded-[1.75rem] bg-white/5" />;
+  if (loading) return <div className="panel h-48 animate-pulse bg-[var(--slate)]" />;
+
   if (!user) {
     return (
-      <div className="mx-auto max-w-lg py-16 text-center">
-        <h1 className="text-2xl font-semibold">Sign in first</h1>
-        <div className="mt-5">
-          <CtaButton href="/login">Sign in</CtaButton>
-        </div>
+      <div className="mx-auto max-w-lg py-20 text-center">
+        <p className="tag">No session</p>
+        <h1 className="display mt-4 text-3xl">Sign in first.</h1>
+        <Link href="/login" className="act act-solid mt-8">
+          <span>Sign in</span>
+        </Link>
       </div>
     );
   }
@@ -56,53 +57,54 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <FadeIn>
-        <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Account</p>
-        <h1 className="mt-2 text-3xl font-semibold">{user.name || user.email || "Member"}</h1>
-      </FadeIn>
-      <Surface className="mt-6 space-y-4 p-6">
-        <Row label="Email" value={user.email || "—"} />
-        <Row label="Connected wallet" value={address ? formatAddress(address) : "Not connected"} />
-        <Row label="Role" value={user.role} />
-        <div className="flex flex-wrap gap-3 pt-2">
-          {!address && <WalletButton />}
-          <CtaButton variant="ghost" onClick={() => void signOut()}>
-            Sign out
-          </CtaButton>
+    <div className="mx-auto max-w-3xl">
+      <Wipe>
+        <div className="flex items-center gap-4">
+          <span className="tag whitespace-nowrap">Account</span>
+          <span className="h-px flex-1 bg-[var(--rule)]" />
+          <span className="num text-[10px] tracking-[0.14em] text-bone-3">{user.referralCode}</span>
         </div>
-      </Surface>
+        <h1 className="display mt-5 text-[clamp(2rem,4.6vw,3rem)]">{user.name || user.email || "Member"}</h1>
+      </Wipe>
 
-      <Surface className="mt-6 p-6">
-        <div className="flex items-center gap-2">
-          <Gift className="size-5 text-[var(--light)]" />
-          <h2 className="text-lg font-semibold">Invite friends</h2>
+      <Wipe delay={0.06} className="panel ticked mt-10 bg-[#0b0b0c] p-6">
+        <p className="tag">Standing</p>
+        <dl className="mt-4">
+          <Row label="Email" value={user.email || "—"} />
+          <Row label="Wallet" value={address ? formatAddress(address) : "Not connected"} />
+          <Row label="Role" value={user.role} />
+        </dl>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {!address ? <WalletButton /> : null}
+          <button type="button" className="act act-line" onClick={() => void signOut()}>
+            <span>Sign out</span>
+          </button>
         </div>
-        <p className="mt-2 text-sm text-[var(--ink-2)]">
-          Invite people north. New sign-ups attach to your code. {refs?.count ?? 0} have joined so far.
+      </Wipe>
+
+      <Wipe delay={0.12} className="panel ticked mt-6 bg-[#0b0b0c] p-6">
+        <p className="tag">Bring a crew</p>
+        <h2 className="display mt-3 text-2xl">
+          {refs?.count ?? 0} {refs?.count === 1 ? "person" : "people"} joined on your code.
+        </h2>
+        <p className="mt-3 max-w-md text-[0.86rem] leading-relaxed text-bone-2">
+          Anyone who registers through this link is attached to your code permanently.
         </p>
-        <p className="mt-3 break-all rounded-2xl bg-black/20 px-4 py-3 text-sm text-[var(--light)]">{link}</p>
-        <div className="mt-4">
-          <CtaButton
-            variant="ghost"
-            onClick={() => {
-              void navigator.clipboard.writeText(link);
-              toast.success("Referral link copied");
-            }}
-          >
-            <Copy className="size-4" /> Copy link
-          </CtaButton>
-        </div>
-      </Surface>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-white/6 py-3 last:border-0">
-      <span className="text-sm text-[var(--ink-3)]">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+        <p className="num mt-5 break-all border border-[var(--rule)] bg-[var(--pitch)] px-4 py-3 text-[0.8rem] text-flux">
+          {link}
+        </p>
+        <button
+          type="button"
+          className="act act-line mt-4"
+          onClick={() => {
+            void navigator.clipboard.writeText(link);
+            toast.success("Link copied");
+          }}
+        >
+          <Copy className="size-3.5" />
+          <span>Copy link</span>
+        </button>
+      </Wipe>
     </div>
   );
 }

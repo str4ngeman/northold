@@ -1,6 +1,6 @@
 "use client";
 
-import { type Abi, type Address, maxUint256, parseUnits } from "viem";
+import { type Abi, type Address } from "viem";
 import {
   useAccount,
   useChainId,
@@ -19,6 +19,7 @@ type Seed = {
   plans?: { slug: string; lockSeconds: number; apyBps: number; minUsd: number; maxUsd: number; emergencyFeeBps: number; active: boolean }[];
   referralBps?: number;
   oracle?: Record<string, number>;
+  tokens?: { slug: string; symbol: string; address: Address; decimals: number; priceUsd: number }[];
 };
 
 function usdToUsd8(n: number) {
@@ -44,7 +45,7 @@ export function useLabDeploy() {
       await switchChainAsync({ chainId: target });
     } catch {
       const eth = (window as unknown as { ethereum?: { request: (args: unknown) => Promise<unknown> } }).ethereum;
-      if (!eth) throw new Error("Connect MetaMask first");
+      if (!eth) throw new Error("No browser wallet available");
       await eth.request({
         method: "wallet_addEthereumChain",
         params: [walletAddChainParams(networkIdFromChainId(target), rpcUrl)],
@@ -81,135 +82,95 @@ export function useLabDeploy() {
   }
 
   async function run(onLog: (line: string) => void) {
-    if (!address) throw new Error("Connect MetaMask first. That wallet becomes the protocol owner.");
+    if (!address) throw new Error("Connect a wallet first. That wallet becomes the protocol owner.");
     try {
       const [artRes, seedRes, stateRes] = await Promise.all([
-      fetch("/api/lab/artifacts"),
-      fetch("/api/lab/plan-seed"),
-      fetch("/api/lab/state"),
-    ]);
-    const artData = (await artRes.json()) as { artifacts?: Artifacts; error?: string };
-    if (!artRes.ok || !artData.artifacts) throw new Error(artData.error || "Click Build first");
-    const seed = (await seedRes.json()) as Seed & { error?: string };
-    if (!seedRes.ok) throw new Error(seed.error || "Could not load admin plans");
-    const state = (await stateRes.json()) as {
-      network?: { chainId: number; rpcUrl?: string };
-      rpc?: string;
-      deployment?: { contracts?: Record<string, string> } | null;
-    };
-
-    const targetChain = state.network?.chainId ?? NETWORKS[appNetworkId()].chainId;
-    await ensureChain(targetChain, state.rpc);
-    onLog(`deploying as ${address} on chain ${targetChain}`);
-
-    const artifacts = artData.artifacts;
-    const existing = state.deployment?.contracts;
-    const reuse =
-      existing?.usdt && existing.usdc && existing.weth && existing.wbtc
-        ? {
-            usdt: existing.usdt as Address,
-            usdc: existing.usdc as Address,
-            weth: existing.weth as Address,
-            wbtc: existing.wbtc as Address,
-          }
-        : null;
-
-    let usdt: Address;
-    let usdc: Address;
-    let weth: Address;
-    let wbtc: Address;
-    let mintedMocks = false;
-    if (reuse) {
-      usdt = reuse.usdt;
-      usdc = reuse.usdc;
-      weth = reuse.weth;
-      wbtc = reuse.wbtc;
-      onLog("reusing mock tokens");
-    } else {
-      usdt = await deploy("MockERC20", artifacts, ["Tether USD", "USDT", 6]);
-      onLog(`  USDT ${usdt}`);
-      usdc = await deploy("MockERC20", artifacts, ["USD Coin", "USDC", 6]);
-      onLog(`  USDC ${usdc}`);
-      weth = await deploy("MockERC20", artifacts, ["Wrapped Ether", "WETH", 18]);
-      onLog(`  WETH ${weth}`);
-      wbtc = await deploy("MockERC20", artifacts, ["Wrapped Bitcoin", "WBTC", 8]);
-      onLog(`  WBTC ${wbtc}`);
-      mintedMocks = true;
-    }
-
-    const oracle = await deploy("NortholdOracle", artifacts, [address]);
-    onLog(`  Oracle ${oracle}`);
-    const card = await deploy("PositionCard", artifacts, [address]);
-    onLog(`  Card ${card}`);
-    const vault = await deploy("NortholdVault", artifacts, [card, oracle, address]);
-    onLog(`  Vault ${vault}`);
-    const lens = await deploy("NortholdLens", artifacts, [vault]);
-    onLog(`  Lens ${lens}`);
-
-    await write(card, artifacts.PositionCard, "setMinter", [vault]);
-
-    const oraclePrices = seed.oracle ?? { usdt: 1, usdc: 1, weth: 3500, wbtc: 95_000 };
-    await write(oracle, artifacts.NortholdOracle, "setPrice", [usdt, usdToUsd8(oraclePrices.usdt ?? 1)]);
-    await write(oracle, artifacts.NortholdOracle, "setPrice", [usdc, usdToUsd8(oraclePrices.usdc ?? 1)]);
-    await write(oracle, artifacts.NortholdOracle, "setPrice", [weth, usdToUsd8(oraclePrices.weth ?? 3500)]);
-    await write(oracle, artifacts.NortholdOracle, "setPrice", [wbtc, usdToUsd8(oraclePrices.wbtc ?? 95_000)]);
-
-    for (const token of [usdt, usdc, weth, wbtc]) {
-      await write(vault, artifacts.NortholdVault, "setAsset", [token, true]);
-    }
-
-    const referralBps = Number(seed.referralBps ?? 500);
-    if (referralBps >= 0 && referralBps <= 2000) {
-      await write(vault, artifacts.NortholdVault, "setReferralBps", [referralBps]);
-    }
-
-    const plans = seed.plans ?? [];
-    const planIds: { id: number; slug: string }[] = [];
-    for (const p of plans) {
-      await write(vault, artifacts.NortholdVault, "addPlan", [
-        {
-          slug: slugToBytes32(p.slug),
-          lockSeconds: p.lockSeconds,
-          minUsd8: usdToUsd8(p.minUsd),
-          maxUsd8: usdToUsd8(p.maxUsd),
-          apyBps: p.apyBps,
-          emergencyFeeBps: p.emergencyFeeBps,
-          active: p.active !== false,
-        },
+        fetch("/api/lab/artifacts"),
+        fetch("/api/lab/plan-seed"),
+        fetch("/api/lab/state"),
       ]);
-      const count = (await readContract(config, {
-        address: vault,
-        abi: artifacts.NortholdVault.abi as Abi,
-        functionName: "planCount",
-      })) as bigint;
-      planIds.push({ id: Number(count), slug: p.slug });
-      onLog(`  plan ${count}  ${p.slug}`);
-    }
+      const artData = (await artRes.json()) as { artifacts?: Artifacts; error?: string };
+      if (!artRes.ok || !artData.artifacts) throw new Error(artData.error || "Click Build first");
+      const seed = (await seedRes.json()) as Seed & { error?: string };
+      if (!seedRes.ok) throw new Error(seed.error || "Could not load admin plans");
+      const state = (await stateRes.json()) as {
+        network?: { chainId: number };
+        rpc?: string;
+      };
 
-    if (mintedMocks) {
-      const mock = artifacts.MockERC20;
-      await write(usdt, mock, "mint", [address, parseUnits("10000000", 6)]);
-      await write(usdt, mock, "approve", [vault, maxUint256]);
-      await write(vault, artifacts.NortholdVault, "fundRewards", [usdt, parseUnits("5000000", 6)]);
-      onLog("funded vault rewards with mock USDT");
-    }
+      const catalogTokens = (seed.tokens ?? []).filter((t) => t.address);
+      if (!catalogTokens.length) {
+        throw new Error("Add your token addresses in Admin → Tokens before deploying.");
+      }
 
-    const save = await fetch("/api/lab/deployment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        deployer: address,
-        chainId: targetChain,
-        rpc: state.rpc,
-        contracts: { vault, card, oracle, lens, usdt, usdc, weth, wbtc },
-        plans: planIds,
-      }),
-    });
-    const saved = (await save.json()) as { error?: string; vault?: string };
-    if (!save.ok) throw new Error(saved.error || "Could not save deployer and addresses");
-    onLog(`saved deployer ${address}`);
-    onLog(`catalog synced  vault=${saved.vault}`);
-    return { deployer: address, vault };
+      const targetChain = state.network?.chainId ?? NETWORKS[appNetworkId()].chainId;
+      await ensureChain(targetChain, state.rpc);
+      onLog(`deploying as ${address} on chain ${targetChain}`);
+      onLog(`using ${catalogTokens.length} catalog token${catalogTokens.length === 1 ? "" : "s"} (not deploying ERC-20s)`);
+
+      const artifacts = artData.artifacts;
+      const oracle = await deploy("NortholdOracle", artifacts, [address]);
+      onLog(`  Oracle ${oracle}`);
+      const card = await deploy("PositionCard", artifacts, [address]);
+      onLog(`  Card ${card}`);
+      const vault = await deploy("NortholdVault", artifacts, [card, oracle, address]);
+      onLog(`  Vault ${vault}`);
+      const lens = await deploy("NortholdLens", artifacts, [vault]);
+      onLog(`  Lens ${lens}`);
+
+      await write(card, artifacts.PositionCard, "setMinter", [vault]);
+
+      for (const token of catalogTokens) {
+        const price = seed.oracle?.[token.slug] ?? token.priceUsd;
+        await write(oracle, artifacts.NortholdOracle, "setPrice", [token.address, usdToUsd8(price)]);
+        await write(vault, artifacts.NortholdVault, "setAsset", [token.address, true]);
+        onLog(`  asset ${token.symbol} ${token.address}`);
+      }
+
+      const referralBps = Number(seed.referralBps ?? 500);
+      if (referralBps >= 0 && referralBps <= 2000) {
+        await write(vault, artifacts.NortholdVault, "setReferralBps", [referralBps]);
+      }
+
+      const plans = seed.plans ?? [];
+      const planIds: { id: number; slug: string }[] = [];
+      for (const p of plans) {
+        await write(vault, artifacts.NortholdVault, "addPlan", [
+          {
+            slug: slugToBytes32(p.slug),
+            lockSeconds: p.lockSeconds,
+            minUsd8: usdToUsd8(p.minUsd),
+            maxUsd8: usdToUsd8(p.maxUsd),
+            apyBps: p.apyBps,
+            emergencyFeeBps: p.emergencyFeeBps,
+            active: p.active !== false,
+          },
+        ]);
+        const count = (await readContract(config, {
+          address: vault,
+          abi: artifacts.NortholdVault.abi as Abi,
+          functionName: "planCount",
+        })) as bigint;
+        planIds.push({ id: Number(count), slug: p.slug });
+        onLog(`  plan ${count}  ${p.slug}`);
+      }
+
+      const save = await fetch("/api/lab/deployment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deployer: address,
+          chainId: targetChain,
+          rpc: state.rpc,
+          contracts: { vault, card, oracle, lens },
+          plans: planIds,
+        }),
+      });
+      const saved = (await save.json()) as { error?: string; vault?: string };
+      if (!save.ok) throw new Error(saved.error || "Could not save deployer and addresses");
+      onLog(`saved deployer ${address}`);
+      onLog(`catalog synced  vault=${saved.vault}`);
+      return { deployer: address, vault };
     } catch (err) {
       throw new Error(decodeChainError(err));
     }

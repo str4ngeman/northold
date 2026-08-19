@@ -1,21 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
 
+import { Meter } from "@/components/kit";
 import { TokenMark } from "@/components/brand/token-mark";
-import { Hint } from "@/components/ui/hint";
-import { Surface } from "@/components/ui/surface";
 import {
-  formatApy,
   formatCountdown,
   formatTokenAmount,
   formatTokenId,
   formatUsd,
 } from "@/lib/format";
+import { gradeLabel, seamOf } from "@/lib/seams";
 import type { PositionView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const STATE: Record<string, string> = {
+  locked: "Sunk",
+  matured: "Liftable",
+  unlocked: "Hauled",
+  emergencyExited: "Abandoned",
+};
+
+/**
+ * A shaft, as it reads on the register: what went down, how far along the term
+ * it is, and what is sitting at the collar waiting to be lifted.
+ */
 export function PositionCard({
   view,
   href,
@@ -25,66 +34,77 @@ export function PositionCard({
   href?: string;
   featured?: boolean;
 }) {
-  const charging = view.status === "locked" && !view.isMatured;
+  const seam = seamOf(view.plan.id, view.plan.lockSeconds);
+  const running = view.status === "locked" && !view.isMatured;
+  const day = Math.round((view.plan.lockSeconds / 86400) * view.lockProgress);
+  const days = Math.round(view.plan.lockSeconds / 86400);
+
   const body = (
-    <Surface
-      hover={Boolean(href)}
-      className={cn("relative overflow-hidden p-5", featured && "p-7")}
+    <div
+      className={cn(
+        "panel ticked group relative h-full bg-[#0b0b0c] transition-colors duration-300",
+        href && "hover:bg-[var(--slate)]",
+      )}
     >
-      <div
-        className="pointer-events-none absolute -right-10 -top-12 size-40 rounded-full opacity-30 blur-3xl"
-        style={{ background: view.token.color }}
-      />
-      <div className="relative flex items-start justify-between gap-3">
+      <span className="absolute inset-x-0 top-0 h-[2px]" style={{ background: seam.color, opacity: 0.65 }} />
+
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--rule)] p-4">
         <div className="flex items-center gap-3">
-          <TokenMark id={view.token.id} symbol={view.token.symbol} color={view.token.color} size={featured ? 48 : 40} />
+          <TokenMark id={view.token.id} symbol={view.token.symbol} size={featured ? 40 : 32} />
           <div>
-            <p className="text-sm font-semibold">{view.token.symbol}</p>
-            <p className="text-xs text-[var(--ink-3)]">{view.plan.name}</p>
+            <p className="num text-[11px] tracking-[0.1em]">SHAFT {formatTokenId(view.tokenId)}</p>
+            <p className="num mt-1 text-[10px] text-bone-3">
+              {seam.index} · {seam.name.toUpperCase()} · {days} D
+            </p>
           </div>
         </div>
-        <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-[var(--ink-2)]">
-          {formatTokenId(view.tokenId)}
+        <span
+          className="num shrink-0 px-2 py-1 text-[9px] uppercase tracking-[0.14em]"
+          style={{ color: seam.color, border: `1px solid ${seam.color}` }}
+        >
+          {STATE[view.status] ?? view.status}
         </span>
       </div>
 
-      <p className={cn("num mt-5 font-semibold tracking-tight", featured ? "text-4xl" : "text-2xl")}>
-        {formatUsd(view.principalUsd)}
-      </p>
-      <p className="mt-1 text-sm text-[var(--ink-3)]">
-        {formatTokenAmount(view.principalAmount, view.token.symbol)}
-      </p>
+      <div className="p-4">
+        <p className="tag">Principal</p>
+        <p className={cn("num mt-1.5 leading-none", featured ? "text-3xl" : "text-2xl")}>
+          {formatTokenAmount(view.principalAmount, view.token.symbol)}
+        </p>
+        <p className="num mt-2 text-[11px] text-bone-3">≈ {formatUsd(view.principalUsd)}</p>
 
-      <div className="mt-5 flex items-center justify-between text-sm">
-        <Hint text="Simple yield in the token you locked. Claim any day — it does not compound.">
-          <span className="text-[var(--gain)] font-medium">{formatApy(view.plan.apyBps)}</span>
-        </Hint>
-        <span className="text-[var(--ink-3)]">
-          {charging ? formatCountdown(view.remainingMs) : view.status === "unlocked" ? "Redeemed" : view.status === "emergencyExited" ? "Exited early" : "Ready"}
-        </span>
+        <div className="mt-5">
+          <Meter value={view.lockProgress} color={seam.color} />
+        </div>
+        <div className="num mt-1 flex items-center justify-between text-[10px] tracking-[0.1em] text-bone-3">
+          <span>
+            DAY {String(day).padStart(2, "0")} / {days}
+          </span>
+          <span style={{ color: seam.color }}>{gradeLabel(view.plan.apyBps)}%</span>
+          <span>{running ? formatCountdown(view.remainingMs) : "TERM CLOSED"}</span>
+        </div>
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/6">
-        <motion.span
-          className="block h-full rounded-full bg-[linear-gradient(90deg,#5ec4b6,#d9b56a)]"
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.max(4, view.lockProgress * 100)}%` }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        />
-      </div>
-
-      <div className="mt-4 flex items-end justify-between">
+      <div className="flex items-end justify-between gap-3 border-t border-[var(--rule)] p-4">
         <div>
-          <p className="text-[11px] uppercase tracking-wider text-[var(--ink-3)]">Claimable {view.token.symbol}</p>
-          <p className="num mt-0.5 text-lg font-semibold text-[var(--gain)]">
+          <p className="tag">Liftable</p>
+          <p className="num mt-1.5 text-lg" style={{ color: seam.color }}>
             {formatTokenAmount(view.claimableReward, view.token.symbol)}
           </p>
         </div>
-        {href && <span className="text-xs text-[var(--light)]">Open →</span>}
+        {href ? (
+          <span className="num text-[10px] uppercase tracking-[0.14em] text-bone-3 transition-colors group-hover:text-bone">
+            Open ↗
+          </span>
+        ) : null}
       </div>
-    </Surface>
+    </div>
   );
 
   if (!href) return body;
-  return <Link href={href}>{body}</Link>;
+  return (
+    <Link href={href} className="block h-full">
+      {body}
+    </Link>
+  );
 }

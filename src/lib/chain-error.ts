@@ -29,7 +29,7 @@ export function decodeChainError(err: unknown): string {
     if (/fetch|econnrefused|timeout|failed to fetch/i.test(text)) {
       return "Could not reach the RPC. Check the RPC URL in Admin → Settings.";
     }
-    if (/user rejected|denied/i.test(text)) return "Transaction rejected in MetaMask.";
+    if (/user rejected|denied/i.test(text)) return "Transaction rejected in the wallet.";
     return err.shortMessage || err.message;
   }
   return err instanceof Error ? err.message : "On-chain write failed";

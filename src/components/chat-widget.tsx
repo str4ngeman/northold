@@ -57,21 +57,23 @@ export function ChatWidget() {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            className="w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-[1.75rem] bg-[#11161f] p-4 shadow-2xl ring-1 ring-white/10"
+            className="w-[min(360px,calc(100vw-2rem))] overflow-hidden border border-[var(--rule)] bg-[var(--slate)] p-4 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)]"
           >
-            <p className="text-sm font-semibold">Need a bearing?</p>
-            <p className="text-xs text-[var(--ink-3)]">Ask about locks, claims, or early exit.</p>
+            <p className="tag">Pit office</p>
+            <p className="mt-2 text-[0.85rem] text-bone-2">Ask about terms, lifting, or abandoning a shaft.</p>
             <div className="mt-3 flex max-h-56 flex-col gap-2 overflow-auto">
               {messages.length === 0 && (
-                <p className="rounded-2xl bg-white/5 px-3 py-2 text-sm text-[var(--ink-2)]">
-                  Try: “What happens if I claim early?”
+                <p className="border border-[var(--rule)] px-3 py-2 text-sm text-bone-2">
+                  Try: “What happens if I lift early?”
                 </p>
               )}
               {messages.map((m) => (
                 <p
                   key={m.id}
-                  className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm ${
-                    m.sender === "user" ? "self-end bg-[var(--light)]/15" : "self-start bg-white/6"
+                  className={`max-w-[90%] px-3 py-2 text-sm ${
+                    m.sender === "user"
+                      ? "self-end border border-flux/40 text-bone"
+                      : "self-start border border-[var(--rule)] bg-[var(--pitch)] text-bone-2"
                   }`}
                 >
                   {m.body}
@@ -90,9 +92,9 @@ export function ChatWidget() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Message"
-                className="h-11 flex-1 rounded-full bg-white/5 px-4 text-sm outline-none ring-1 ring-white/10"
+                className="h-11 min-w-0 flex-1 border border-[var(--rule)] bg-[var(--pitch)] px-3 text-sm outline-none focus:border-flux"
               />
-              <button type="submit" className="grid size-11 place-items-center rounded-full bg-[var(--light)] text-[#16120a]">
+              <button type="submit" className="grid size-11 shrink-0 place-items-center bg-bone text-[#0b0b0c] transition-colors hover:bg-flux">
                 <Send className="size-4" />
               </button>
             </form>
@@ -102,7 +104,7 @@ export function ChatWidget() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="grid size-14 place-items-center rounded-full bg-[var(--light)] text-[#16120a] shadow-[0_12px_30px_-10px_rgba(217,181,106,.8)] transition-transform active:scale-95"
+        className="grid size-12 place-items-center border border-[var(--rule)] bg-bone text-[#0b0b0c] transition-colors hover:bg-flux active:scale-95"
         aria-label={open ? "Close chat" : "Open support"}
       >
         {open ? <X className="size-5" /> : <MessageCircle className="size-5" />}

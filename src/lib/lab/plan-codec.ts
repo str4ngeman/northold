@@ -8,10 +8,19 @@ export type SeedPlan = {
   active: boolean;
 };
 
+export type SeedToken = {
+  slug: string;
+  symbol: string;
+  address: `0x${string}`;
+  decimals: number;
+  priceUsd: number;
+};
+
 export type PlanSeedFile = {
   referralBps: number;
   plans: SeedPlan[];
   oracle: Record<string, number>;
+  tokens: SeedToken[];
 };
 
 export type VaultPlanArgs = {

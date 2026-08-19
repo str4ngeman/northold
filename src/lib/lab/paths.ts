@@ -7,18 +7,7 @@ export const contractsRoot = path.join(repoRoot, "contracts");
 export const deploymentsDir = path.join(contractsRoot, "deployments");
 export const foundryBin = path.join(os.homedir(), ".foundry", "bin");
 
-export const LAB_COMMANDS = [
-  "setup",
-  "build",
-  "test",
-  "coverage",
-  "audit",
-  "deploy",
-  "time",
-  "monitor",
-  "wallet",
-  "catalog",
-] as const;
+export const LAB_COMMANDS = ["build", "warp", "time"] as const;
 
 export type LabCommand = (typeof LAB_COMMANDS)[number];
 
@@ -32,10 +21,10 @@ export type Deployment = {
     card: `0x${string}`;
     oracle: `0x${string}`;
     lens: `0x${string}`;
-    usdt: `0x${string}`;
-    usdc: `0x${string}`;
-    weth: `0x${string}`;
-    wbtc: `0x${string}`;
+    usdt?: `0x${string}`;
+    usdc?: `0x${string}`;
+    weth?: `0x${string}`;
+    wbtc?: `0x${string}`;
   };
   plans: { id: number; slug: string }[];
 };

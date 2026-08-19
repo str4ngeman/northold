@@ -40,7 +40,7 @@ export function WalletButton() {
       await switchChainAsync({ chainId: def.chainId });
     } catch {
       const ethereum = (window as Window & { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
-      if (!ethereum) throw new Error("MetaMask is not available");
+      if (!ethereum) throw new Error("No browser wallet available");
       await ethereum.request({
         method: "wallet_addEthereumChain",
         params: [walletAddChainParams(id, catalog?.network.rpcUrl)],
@@ -54,14 +54,14 @@ export function WalletButton() {
     try {
       const connector = connectors.find((item) => item.id === "injected") ?? connectors[0];
       if (!connector) {
-        toast.error("No browser wallet found. Install MetaMask.");
+        toast.error("No browser wallet found.");
         return;
       }
       if (!isConnected) {
         await connectAsync({ connector });
       }
       await ensureNetwork(targetNetwork);
-      toast.success(`MetaMask on ${NETWORKS[targetNetwork].shortLabel}`);
+      toast.success(`Wallet on ${NETWORKS[targetNetwork].shortLabel}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Wallet connect failed");
     } finally {
@@ -86,7 +86,7 @@ export function WalletButton() {
       onClick={() => void connectWallet()}
     >
       {busy || isPending ? <Loader2 className="size-4 animate-spin" /> : <Wallet className="size-4" />}
-      {busy || isPending ? "Connecting" : "Connect MetaMask"}
+      {busy || isPending ? "Connecting" : "Connect wallet"}
     </CtaButton>
   );
 }

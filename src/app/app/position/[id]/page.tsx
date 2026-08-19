@@ -2,33 +2,24 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { isAddress } from "viem";
 
 import { EmergencyDialog } from "@/components/emergency-dialog";
 import { PositionCard } from "@/components/dashboard/position-card";
-import { FadeIn, ProgressRing } from "@/components/motion";
+import { DepthRule, Meter, Row, Wipe } from "@/components/kit";
 import { ShareCardButton } from "@/components/share-card-button";
-import { CtaButton } from "@/components/ui/cta-button";
-import { Hint } from "@/components/ui/hint";
-import { Surface } from "@/components/ui/surface";
 import { useNow } from "@/hooks/use-now";
 import { usePositions } from "@/hooks/use-positions";
 import { useVaultTx } from "@/hooks/use-vault-tx";
 import { useLabExec } from "@/hooks/use-lab-exec";
-import {
-  formatApy,
-  formatFee,
-  formatLock,
-  formatTokenAmount,
-  formatTokenId,
-  formatUsd,
-} from "@/lib/format";
+import { formatCountdown, formatFee, formatTokenAmount, formatTokenId, formatUsd } from "@/lib/format";
 import { explorerAddressUrl } from "@/lib/networks";
+import { gradeLabel, seamOf } from "@/lib/seams";
 
-export default function PositionPage() {
+export default function ShaftPage() {
   const params = useParams<{ id: string }>();
   const tokenId = Number(params.id);
   const now = useNow();
@@ -41,26 +32,28 @@ export default function PositionPage() {
   const [transferTo, setTransferTo] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (loading) {
-    return <div className="h-40 animate-pulse rounded-[1.75rem] bg-white/5" />;
-  }
+  if (loading) return <div className="panel h-64 animate-pulse bg-[var(--slate)]" />;
 
   if (!Number.isFinite(tokenId) || !view) {
     return (
-      <div className="mx-auto max-w-xl py-16 text-center">
-        <h1 className="text-2xl font-semibold">Position not found</h1>
-        <div className="mt-5">
-          <CtaButton href="/app">Back to hold</CtaButton>
-        </div>
+      <div className="mx-auto max-w-xl py-20 text-center">
+        <p className="tag">Not on the register</p>
+        <h1 className="display mt-4 text-3xl">No such shaft.</h1>
+        <Link href="/app" className="act act-line mt-8">
+          <span>Back to the vault</span>
+        </Link>
       </div>
     );
   }
 
   const position = view;
+  const seam = seamOf(view.plan.id, view.plan.lockSeconds);
   const active = position.status === "locked";
   const canClaim = active && position.claimableReward > 0.0000001;
   const canUnlock = position.isMatured && position.status === "locked";
   const canEmergency = active && !position.isMatured;
+  const days = Math.round(view.plan.lockSeconds / 86400);
+  const day = Math.round(days * view.lockProgress);
 
   async function act(path: string, ok: (data: Record<string, unknown>) => string) {
     setBusy(true);
@@ -95,7 +88,7 @@ export default function PositionPage() {
     setBusy(true);
     try {
       await transferCard(catalog, position.tokenId, transferTo);
-      toast.success("Card sent");
+      toast.success("Shaft transferred");
       await refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Transfer failed");
@@ -106,96 +99,123 @@ export default function PositionPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <Link href="/app" className="inline-flex items-center gap-2 text-sm text-[var(--ink-2)] hover:text-[var(--ink)]">
-        <ArrowLeft className="size-4" /> Hold
+      <Link
+        href="/app"
+        className="num inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-bone-3 transition-colors hover:text-bone"
+      >
+        <ArrowLeft className="size-3.5" /> Vault
       </Link>
-      <div className="mt-6 grid gap-8 lg:grid-cols-[.9fr_1.1fr]">
-        <FadeIn>
-          <div ref={cardRef} className="rounded-[2rem] bg-[#07090f] p-2">
+
+      <Wipe className="mt-8 flex flex-wrap items-end justify-between gap-5 border-b border-[var(--rule)] pb-6">
+        <div>
+          <p className="tag" style={{ color: seam.color }}>
+            Seam {seam.index} · {seam.name} · {seam.depth}
+          </p>
+          <h1 className="display mt-4 text-[clamp(2rem,4.6vw,3rem)]">
+            Shaft {formatTokenId(view.tokenId)}
+          </h1>
+          <p className="num mt-2 text-[11px] text-bone-3">
+            {view.token.name.toUpperCase()} · OPENED {new Date(view.startedAt).toISOString().slice(0, 10)}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="tag">Time to date</p>
+          <p className="num mt-2 text-xl">{active && !view.isMatured ? formatCountdown(view.remainingMs) : "TERM CLOSED"}</p>
+        </div>
+      </Wipe>
+
+      <div className="mt-10 grid gap-px bg-[var(--rule)] lg:grid-cols-[.85fr_1.15fr]">
+        <Wipe className="bg-[#0b0b0c] p-6 lg:p-8">
+          <div ref={cardRef} className="bg-[#0b0b0c]">
             <PositionCard view={view} featured />
           </div>
-          <div className="mt-4 flex justify-center">
+          <div className="mt-5 flex justify-center">
             <ShareCardButton tokenId={view.tokenId} targetRef={cardRef} />
           </div>
-        </FadeIn>
 
-        <FadeIn delay={0.08}>
-          <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">
-            Position {formatTokenId(view.tokenId)}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold">
-            {view.plan.name} · {view.token.symbol}
-          </h1>
-          <p className="mt-2 text-sm text-[var(--ink-2)]">
-            This NFT is the hold. Transfer it later and the whole lock goes with it.
-          </p>
-
-          <div className="mt-6 flex items-center gap-4">
-            <div className="relative">
-              <ProgressRing value={view.lockProgress} color="var(--gain)" />
-              <span className="num absolute inset-0 grid place-items-center text-sm">
-                {Math.round(view.lockProgress * 100)}%
-              </span>
+          <div className="mt-8 grid grid-cols-[92px_1fr] gap-6 border-t border-[var(--rule)] pt-8">
+            <div>
+              <p className="tag mb-4">Depth</p>
+              <DepthRule active={view.plan.id} height={200} />
             </div>
             <div>
-              <p className="text-sm text-[var(--ink-3)]">Lock progress</p>
-              <p className="text-lg font-semibold">{formatLock(view.plan.lockSeconds)}</p>
+              <p className="text-[0.85rem] leading-relaxed text-bone-2">
+                This token is the position. Transfer it and the whole shaft goes with it — the term, the coupon, and
+                whatever is still accruing at the face.
+              </p>
+              <p className="num mt-4 text-[10px] leading-relaxed tracking-[0.1em] text-bone-3">
+                MATRIX · {seam.matrix.toUpperCase()}
+              </p>
             </div>
           </div>
+        </Wipe>
 
-          <dl className="mt-6 grid gap-3 sm:grid-cols-2">
+        <Wipe delay={0.08} className="bg-[#0b0b0c] p-6 lg:p-8">
+          <p className="tag">Progress</p>
+          <div className="mt-4">
+            <Meter value={view.lockProgress} color={seam.color} ticks={16} />
+          </div>
+          <div className="num mt-1 flex justify-between text-[10px] tracking-[0.12em] text-bone-3">
+            <span>
+              DAY {String(day).padStart(2, "0")} OF {days}
+            </span>
+            <span>{Math.round(view.lockProgress * 100)}%</span>
+          </div>
+
+          <dl className="mt-8 grid gap-x-10 sm:grid-cols-2">
             <Row label="Principal" value={formatTokenAmount(view.principalAmount, view.token.symbol)} />
             <Row label="Value" value={formatUsd(view.principalUsd)} />
             <Row
-              label={`Claimable ${view.token.symbol}`}
+              label="Liftable"
               value={formatTokenAmount(view.claimableReward, view.token.symbol)}
-              hint="Pull this any time. Already-claimed yield stays yours even if you exit early."
-              gain
+              accent={seam.color}
             />
-            <Row label="Claimed" value={formatTokenAmount(view.claimedReward, view.token.symbol)} />
-            <Row label="Coupon" value={formatApy(view.plan.apyBps)} />
-            <Row
-              label="Early exit fee"
-              value={formatFee(view.plan.emergencyFeeBps)}
-              hint="Taken from principal only if you break the lock before maturity."
-            />
+            <Row label="Lifted" value={formatTokenAmount(view.claimedReward, view.token.symbol)} />
+            <Row label="Grade" value={`${gradeLabel(view.plan.apyBps)} %`} />
+            <Row label="Abandon fee" value={formatFee(view.plan.emergencyFeeBps)} />
           </dl>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <CtaButton
+          <div className="mt-8 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="act act-solid"
               disabled={!canClaim || busy}
               onClick={() =>
-                void act("claim", (d) => `Claimed ${formatTokenAmount(Number((d as { claimed?: number }).claimed ?? 0), position.token.symbol)}`)
+                void act(
+                  "claim",
+                  (d) =>
+                    `Lifted ${formatTokenAmount(Number((d as { claimed?: number }).claimed ?? 0), position.token.symbol)}`,
+                )
               }
             >
-              Claim {view.token.symbol}
-            </CtaButton>
-            <CtaButton
-              variant="ghost"
+              <span>Lift {view.token.symbol}</span>
+            </button>
+            <button
+              type="button"
+              className="act act-line"
               disabled={!canUnlock || busy}
               onClick={() =>
                 void act(
                   "unlock",
-                  (d) => `Returned ${formatTokenAmount(Number((d as { principal: number }).principal), position.token.symbol)}`,
+                  (d) => `Hauled ${formatTokenAmount(Number((d as { principal: number }).principal), position.token.symbol)}`,
                 )
               }
             >
-              Release principal
-            </CtaButton>
-            <CtaButton variant="ghost" disabled={!canEmergency || busy} onClick={() => setEmergencyOpen(true)}>
-              Exit early
-            </CtaButton>
+              <span>Haul principal</span>
+            </button>
+            <button type="button" className="act act-warn" disabled={!canEmergency || busy} onClick={() => setEmergencyOpen(true)}>
+              <span>Abandon shaft</span>
+            </button>
           </div>
 
           {catalog?.protocol && catalog.network.capabilities.warp && active && !position.isMatured ? (
-            <div className="mt-4">
-              <p className="text-xs text-[var(--ink-3)]">
-                Local Anvil only — advance time so this lock can mature without waiting.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <CtaButton
-                  variant="ghost"
-                  className="h-10 px-4"
+            <div className="mt-8 border border-[var(--rule)] p-4">
+              <p className="tag">Local chain only</p>
+              <p className="mt-2 text-[0.82rem] text-bone-2">Advance chain time so this term can close without waiting.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="act act-line h-10"
                   disabled={warping || busy}
                   onClick={() =>
                     void (async () => {
@@ -205,55 +225,51 @@ export default function PositionPage() {
                     })()
                   }
                 >
-                  +1 day
-                </CtaButton>
-                <CtaButton
-                  variant="ghost"
-                  className="h-10 px-4"
+                  <span>+1 day</span>
+                </button>
+                <button
+                  type="button"
+                  className="act act-line h-10"
                   disabled={warping || busy}
                   onClick={() =>
                     void (async () => {
                       const secs = Math.max(60, Math.ceil(position.remainingMs / 1000) + 60);
                       await warp("warp", [`${secs}s`]);
                       await refresh();
-                      toast.success("Warped past the lock");
+                      toast.success("Warped past the term");
                     })()
                   }
                 >
-                  Warp to maturity
-                </CtaButton>
+                  <span>To maturity</span>
+                </button>
               </div>
             </div>
           ) : null}
 
           {catalog?.protocol ? (
-            <p className="mt-4 text-sm text-[var(--ink-3)]">
+            <div className="mt-8 border-t border-[var(--rule)] pt-6">
+              <p className="tag">Transfer</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <input
+                  value={transferTo}
+                  onChange={(e) => setTransferTo(e.target.value)}
+                  placeholder="0x…"
+                  className="num h-11 min-w-0 flex-1 border border-[var(--rule)] bg-[var(--pitch)] px-3 text-sm outline-none focus:border-flux"
+                />
+                <button type="button" className="act act-line" disabled={busy} onClick={() => void onTransfer()}>
+                  <span>Send</span>
+                </button>
+              </div>
               {catalog.protocol.explorerUrl ? (
                 <a
                   href={explorerAddressUrl(catalog.protocol.explorerUrl, catalog.protocol.vault)}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[var(--light)]"
+                  className="num mt-4 inline-block text-[10px] uppercase tracking-[0.14em] text-flux"
                 >
-                  View vault on {catalog.network.shortLabel}
+                  Vault on {catalog.network.shortLabel} ↗
                 </a>
-              ) : (
-                `On ${catalog.network.name}`
-              )}
-            </p>
-          ) : null}
-
-          {catalog?.protocol ? (
-            <div className="mt-4 flex max-w-lg gap-2">
-              <input
-                value={transferTo}
-                onChange={(e) => setTransferTo(e.target.value)}
-                placeholder="Transfer card to 0x…"
-                className="h-12 flex-1 rounded-full bg-white/4 px-4 font-mono text-sm outline-none ring-1 ring-white/10 focus:ring-[var(--light)]"
-              />
-              <CtaButton variant="ghost" disabled={busy} onClick={() => void onTransfer()}>
-                Send
-              </CtaButton>
+              ) : null}
             </div>
           ) : null}
 
@@ -264,34 +280,12 @@ export default function PositionPage() {
             onConfirm={() =>
               act(
                 "emergency",
-                (d) =>
-                  `Returned ${formatTokenAmount(Number((d as { returned: number }).returned), position.token.symbol)}`,
+                (d) => `Returned ${formatTokenAmount(Number((d as { returned: number }).returned), position.token.symbol)}`,
               )
             }
           />
-        </FadeIn>
+        </Wipe>
       </div>
     </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  hint,
-  gain,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  gain?: boolean;
-}) {
-  return (
-    <Surface className="p-4">
-      <dt className="text-xs text-[var(--ink-3)]">
-        {hint ? <Hint text={hint}>{label}</Hint> : label}
-      </dt>
-      <dd className={`num mt-1 text-lg font-semibold ${gain ? "text-[var(--gain)]" : ""}`}>{value}</dd>
-    </Surface>
   );
 }

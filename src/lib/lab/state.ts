@@ -1,17 +1,10 @@
-import {
-  createPublicClient,
-  erc20Abi,
-  formatEther,
-  formatUnits,
-  http,
-  type Abi,
-  type Address,
-  type Chain,
-} from "viem";
+import { createPublicClient, erc20Abi, formatEther, formatUnits, http, isAddress, type Abi, type Address, type Chain } from "viem";
 
+import { connectDb } from "@/lib/db";
 import { loadArtifact, readDeployment, type Deployment } from "@/lib/lab/paths";
+import { Token } from "@/lib/models/token";
 import { deploymentFromRuntime, getRuntimeNetwork } from "@/lib/network-store";
-import { viemChain, type NetworkId } from "@/lib/networks";
+import { viemChain, type NetworkId, type NetworkTokenMap } from "@/lib/networks";
 
 function client(rpc: string, networkId: NetworkId) {
   const chain = { ...viemChain(networkId), rpcUrls: { default: { http: [rpc] } } } as Chain;
@@ -29,17 +22,56 @@ function slugFromBytes32(hex: string) {
   return buf.subarray(0, i === -1 ? buf.length : i).toString("utf8");
 }
 
-function assetMeta(d: Deployment, addr: string) {
-  const a = addr.toLowerCase();
-  if (a === d.contracts.usdt.toLowerCase()) return { symbol: "USDT", decimals: 6 };
-  if (a === d.contracts.usdc.toLowerCase()) return { symbol: "USDC", decimals: 6 };
-  if (a === d.contracts.weth.toLowerCase()) return { symbol: "WETH", decimals: 18 };
-  if (a === d.contracts.wbtc.toLowerCase()) return { symbol: "WBTC", decimals: 8 };
-  return { symbol: addr.slice(0, 8), decimals: 18 };
+export type LabAsset = {
+  slug: string;
+  symbol: string;
+  address: Address;
+  decimals: number;
+};
+
+function listedAssets(tokens: NetworkTokenMap, d?: Deployment | null): LabAsset[] {
+  const fromMap = Object.entries(tokens)
+    .filter((entry): entry is [string, { address: Address; decimals: number }] => Boolean(entry[1]?.address))
+    .map(([slug, meta]) => ({
+      slug,
+      symbol: slug.toUpperCase(),
+      address: meta.address,
+      decimals: meta.decimals,
+    }));
+  if (fromMap.length) return fromMap;
+  if (!d) return [];
+  const fallback: LabAsset[] = [];
+  const push = (slug: string, address: Address | undefined, decimals: number) => {
+    if (address) fallback.push({ slug, symbol: slug.toUpperCase(), address, decimals });
+  };
+  push("usdt", d.contracts.usdt, 6);
+  push("usdc", d.contracts.usdc, 6);
+  push("weth", d.contracts.weth, 18);
+  push("wbtc", d.contracts.wbtc, 8);
+  return fallback;
+}
+
+function assetMeta(assets: LabAsset[], addr: string) {
+  const hit = assets.find((a) => a.address.toLowerCase() === addr.toLowerCase());
+  return hit ?? { slug: addr.slice(0, 8), symbol: addr.slice(0, 8), address: addr as Address, decimals: 18 };
+}
+
+async function catalogTokenMap(): Promise<NetworkTokenMap> {
+  await connectDb();
+  const docs = await Token.find().sort({ symbol: 1 });
+  const map: NetworkTokenMap = {};
+  for (const t of docs) {
+    if (t.active === false) continue;
+    if (!isAddress(t.address) || t.address === "0x0000000000000000000000000000000000000000") continue;
+    map[t.slug] = { address: t.address as Address, decimals: t.decimals };
+  }
+  return map;
 }
 
 export async function getLabState() {
   const runtime = await getRuntimeNetwork();
+  const catalog = await catalogTokenMap();
+  const tokenMap = { ...catalog, ...runtime.tokens };
   const state: {
     network: {
       id: NetworkId;
@@ -56,6 +88,7 @@ export async function getLabState() {
     block?: string;
     time?: { unix: number; iso: string };
     deployment: Deployment | null;
+    assets: LabAsset[];
   } = {
     network: {
       id: runtime.id,
@@ -69,7 +102,9 @@ export async function getLabState() {
     rpc: runtime.rpcUrl,
     connected: false,
     deployment: readDeployment(runtime.chainId) ?? deploymentFromRuntime(runtime),
+    assets: [],
   };
+  state.assets = listedAssets(tokenMap, state.deployment);
 
   try {
     const pc = client(runtime.rpcUrl, runtime.id);
@@ -85,6 +120,7 @@ export async function getLabState() {
     state.time = { unix, iso: new Date(unix * 1000).toISOString() };
     if (chainId === runtime.chainId) {
       state.deployment = readDeployment(chainId) ?? deploymentFromRuntime(runtime);
+      state.assets = listedAssets(tokenMap, state.deployment);
     }
   } catch {
     state.connected = false;
@@ -135,22 +171,16 @@ export async function getCatalog() {
     });
   }
 
+  const listed = state.assets;
   const assets = await Promise.all(
-    (
-      [
-        ["USDT", d.contracts.usdt],
-        ["USDC", d.contracts.usdc],
-        ["WETH", d.contracts.weth],
-        ["WBTC", d.contracts.wbtc],
-      ] as const
-    ).map(async ([symbol, address]) => {
+    listed.map(async (a) => {
       const price = (await pc.readContract({
         address: d.contracts.oracle,
         abi: oracleAbi,
         functionName: "priceUsd",
-        args: [address],
+        args: [a.address],
       })) as bigint;
-      return { symbol, address, priceUsd: usd8(price) };
+      return { symbol: a.symbol, address: a.address, priceUsd: usd8(price), decimals: a.decimals, slug: a.slug };
     }),
   );
 
@@ -177,13 +207,16 @@ export async function getSnapshot() {
     depositsPaused: boolean;
     exitsPaused: boolean;
   };
-  const tokens = [d.contracts.usdt, d.contracts.usdc, d.contracts.weth, d.contracts.wbtc];
-  const tvl = (await pc.readContract({
-    address: d.contracts.lens,
-    abi: lensAbi,
-    functionName: "tvlUsd8",
-    args: [tokens],
-  })) as [bigint, bigint[]];
+  const assets = state.assets;
+  const tokens = assets.map((a) => a.address);
+  const tvl = tokens.length
+    ? ((await pc.readContract({
+        address: d.contracts.lens,
+        abi: lensAbi,
+        functionName: "tvlUsd8",
+        args: [tokens],
+      })) as [bigint, bigint[]])
+    : ([BigInt(0), []] as [bigint, bigint[]]);
   const locked = await Promise.all(
     tokens.map(async (token, i) => {
       const amount = (await pc.readContract({
@@ -192,7 +225,7 @@ export async function getSnapshot() {
         functionName: "lockedPrincipal",
         args: [token],
       })) as bigint;
-      const meta = assetMeta(d, token);
+      const meta = assetMeta(assets, token);
       return {
         symbol: meta.symbol,
         address: token,
@@ -210,7 +243,7 @@ export async function getSnapshot() {
         functionName: "available",
         args: [token],
       })) as bigint;
-      const meta = assetMeta(d, token);
+      const meta = assetMeta(assets, token);
       return {
         symbol: meta.symbol,
         amount: formatUnits(amount, meta.decimals),
@@ -275,33 +308,26 @@ export async function getWallet(address: Address) {
 
   const eth = await pc.getBalance({ address });
   const tokens = await Promise.all(
-    (
-      [
-        ["USDT", d.contracts.usdt, 6],
-        ["USDC", d.contracts.usdc, 6],
-        ["WETH", d.contracts.weth, 18],
-        ["WBTC", d.contracts.wbtc, 8],
-      ] as const
-    ).map(async ([symbol, tokenAddr, decimals]) => {
+    state.assets.map(async (a) => {
       const [balance, allowance] = await Promise.all([
         pc.readContract({
-          address: tokenAddr,
+          address: a.address,
           abi: erc20Abi,
           functionName: "balanceOf",
           args: [address],
         }) as Promise<bigint>,
         pc.readContract({
-          address: tokenAddr,
+          address: a.address,
           abi: erc20Abi,
           functionName: "allowance",
           args: [address, d.contracts.vault],
         }) as Promise<bigint>,
       ]);
       return {
-        symbol,
-        address: tokenAddr,
-        balance: formatUnits(balance, decimals),
-        allowance: allowance === BigInt(0) ? "0" : allowance === (BigInt(2) ** BigInt(256)) - BigInt(1) ? "max" : formatUnits(allowance, decimals),
+        symbol: a.symbol,
+        address: a.address,
+        balance: formatUnits(balance, a.decimals),
+        allowance: allowance === BigInt(0) ? "0" : allowance === (BigInt(2) ** BigInt(256)) - BigInt(1) ? "max" : formatUnits(allowance, a.decimals),
       };
     }),
   );
@@ -321,7 +347,7 @@ export async function getWallet(address: Address) {
   })) as PositionView[];
 
   const positions = list.map((p) => {
-    const asset = assetMeta(d, p.asset);
+    const asset = assetMeta(state.assets, p.asset);
     return {
       tokenId: Number(p.tokenId),
       plan: slugFromBytes32(p.planSlug),

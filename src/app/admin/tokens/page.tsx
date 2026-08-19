@@ -167,7 +167,7 @@ export default function AdminTokens() {
       title="Stakeable assets"
       description={
         vaultLive
-          ? `Addresses follow ${networkName}. Price and availability edits ask the connected MetaMask wallet to sign.`
+          ? `Addresses follow ${networkName}. Price and availability edits ask the connected wallet to sign.`
           : labUi
             ? "Placeholder assets until you deploy. Switching Test/Live never overwrites the other network."
             : "Paste live token addresses. Each network keeps its own list."
