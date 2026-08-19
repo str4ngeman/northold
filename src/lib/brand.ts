@@ -5,7 +5,6 @@ export const BRAND = {
   title: "Northold — Hold north. Earn the same token.",
   description:
     "Lock ERC-20 tokens on a bearing. Yield is paid in the same asset you deposit. Principal returns in that token too.",
-  siwePrefix: "Northold wants you to sign in.",
   cookies: {
     session: "northold_session",
     referral: "northold_ref",

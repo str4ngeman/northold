@@ -1,18 +1,20 @@
 import { connectDb } from "@/lib/db";
 import { BRAND } from "@/lib/brand";
+import { labUiFromRequest } from "@/lib/lab-surface-server";
 import { bindAddress } from "@/lib/lab/live-tokens";
 import { mapPlan, mapToken } from "@/lib/map-catalog";
 import { Plan } from "@/lib/models/plan";
 import { Settings } from "@/lib/models/settings";
 import { Token } from "@/lib/models/token";
 import { getRuntimeNetwork, publicNetworkView } from "@/lib/network-store";
-import type { AppNetworkView, Plan as PlanType, ProtocolConfig, Token as TokenType } from "@/lib/types";
+import type { Plan as PlanType, ProtocolConfig, Token as TokenType } from "@/lib/types";
 
 export type Catalog = {
   plans: PlanType[];
   tokens: TokenType[];
   protocol: ProtocolConfig | null;
   network: AppNetworkView;
+  labUi: boolean;
   settings: {
     siteName: string;
     tagline: string;
@@ -25,12 +27,18 @@ export type Catalog = {
 
 export async function loadCatalog(): Promise<Catalog> {
   await connectDb();
-  const [plans, tokens, settings, runtime] = await Promise.all([
+  const [plans, tokens, settings, runtime, labUi] = await Promise.all([
     Plan.find().sort({ lockSeconds: 1 }),
     Token.find().sort({ symbol: 1 }),
     Settings.findOne({ key: "app" }),
     getRuntimeNetwork(),
+    labUiFromRequest(),
   ]);
+
+  const network = publicNetworkView(runtime);
+  if (!labUi) {
+    network.capabilities = { warp: false, faucet: false, deployMocks: false };
+  }
 
   return {
     plans: plans.map((doc) => {
@@ -49,7 +57,8 @@ export async function loadCatalog(): Promise<Catalog> {
       };
     }),
     protocol: runtime.protocol,
-    network: publicNetworkView(runtime),
+    network,
+    labUi,
     settings: {
       siteName: settings?.siteName ?? BRAND.name,
       tagline: settings?.tagline ?? BRAND.tagline,

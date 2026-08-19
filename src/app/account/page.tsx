@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { Copy, Gift } from "lucide-react";
 
 import { CtaButton } from "@/components/ui/cta-button";
@@ -22,6 +22,7 @@ type RefData = {
 export default function AccountPage() {
   const router = useRouter();
   const { user, loading, logout } = useSession();
+  const { address } = useAccount();
   const { disconnect } = useDisconnect();
   const [refs, setRefs] = useState<RefData | null>(null);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -62,10 +63,10 @@ export default function AccountPage() {
       </FadeIn>
       <Surface className="mt-6 space-y-4 p-6">
         <Row label="Email" value={user.email || "—"} />
-        <Row label="Wallet" value={user.address ? formatAddress(user.address) : "Not linked"} />
+        <Row label="Connected wallet" value={address ? formatAddress(address) : "Not connected"} />
         <Row label="Role" value={user.role} />
         <div className="flex flex-wrap gap-3 pt-2">
-          {!user.address && <WalletButton />}
+          {!address && <WalletButton />}
           <CtaButton variant="ghost" onClick={() => void signOut()}>
             Sign out
           </CtaButton>

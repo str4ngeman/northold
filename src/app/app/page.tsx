@@ -49,17 +49,15 @@ export default function VaultPage() {
 
       {!canSeeVault ? (
         <Surface className="mt-10 p-8">
-          <h2 className="text-2xl font-semibold">Connect to see your hold</h2>
+          <h2 className="text-2xl font-semibold">Sign in to see your hold</h2>
           <p className="mt-2 text-sm text-[var(--ink-2)]">
             {catalog?.protocol
-              ? `Connect MetaMask on ${catalog.network.shortLabel}. Position cards follow the wallet that minted them.`
-              : "Wallet or email — same positions either way."}
+              ? `Sign in with email, then connect MetaMask on ${catalog.network.shortLabel} to mint and claim.`
+              : "Sign in with email and password. Connect MetaMask when you are ready to lock."}
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
+            <CtaButton href="/login">Sign in</CtaButton>
             <WalletButton />
-            <CtaButton href="/login" variant="ghost">
-              Email login
-            </CtaButton>
           </div>
         </Surface>
       ) : views.length === 0 ? (

@@ -153,7 +153,7 @@ function StakeForm() {
       return;
     }
     if (onChain && plan.onChainId == null && !catalog?.protocol?.planIds[plan.id]) {
-      toast.error("This plan is not on the vault yet. Deploy from Lab after saving plans.");
+      toast.error("This plan is not on the vault yet.");
       return;
     }
     setBusy(true);
@@ -220,10 +220,7 @@ function StakeForm() {
         </Surface>
       ) : !user ? (
         <div className="mt-5 flex flex-wrap gap-3">
-          <WalletButton />
-          <CtaButton href="/login" variant="ghost">
-            Email login
-          </CtaButton>
+          <CtaButton href="/login">Sign in</CtaButton>
         </div>
       ) : null}
 

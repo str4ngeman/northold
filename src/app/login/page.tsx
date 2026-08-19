@@ -8,10 +8,11 @@ import { toast } from "sonner";
 import { CtaButton } from "@/components/ui/cta-button";
 import { FadeIn } from "@/components/motion";
 import { Surface } from "@/components/ui/surface";
-import { WalletButton } from "@/components/wallet-button";
+import { useSession } from "@/hooks/use-session";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refresh } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +28,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      await refresh();
       toast.success("Welcome back");
       router.push(data.user?.role === "admin" ? "/admin" : "/app");
       router.refresh();
@@ -42,10 +44,9 @@ export default function LoginPage() {
       <FadeIn>
         <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Account</p>
         <h1 className="mt-3 text-3xl font-semibold">Sign in and hold north</h1>
-        <p className="mt-2 text-sm text-[var(--ink-2)]">Wallet or email. Same hold either way.</p>
-        <div className="mt-5">
-          <WalletButton />
-        </div>
+        <p className="mt-2 text-sm text-[var(--ink-2)]">
+          Email and password only. Connect MetaMask later when you mint or when the deployer signs a vault change.
+        </p>
         <Surface className="mt-6 p-6">
           <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
             <label className="field">

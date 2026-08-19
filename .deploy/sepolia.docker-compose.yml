@@ -1,10 +1,17 @@
+# VPS: sepolia / staging
+# docker compose -f .deploy/sepolia.docker-compose.yml --env-file .env up -d
+#
+# 8080 is Watchtower's internal API. Do not publish it. Caddy should only
+# reverse-proxy northold-sepolia:3000.
+
 services:
-  northold:
+  northold-sepolia:
     image: ghcr.io/str4ngeman/northold:latest
-    container_name: northold
+    container_name: northold-sepolia
     restart: unless-stopped
     labels:
       - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.scope=sepolia
     networks:
       - web
     environment:
@@ -18,20 +25,19 @@ services:
       BLOCKCHAIN_NETWORK: ${BLOCKCHAIN_NETWORK:-sepolia}
       LAB_UI: ${LAB_UI:-1}
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
-      WATCHTOWER_URL: http://watchtower:8080
+      WATCHTOWER_URL: http://watchtower-sepolia:8080
       WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN}
 
-  # Pulls ghcr.io/...:latest and recreates northold. Do not reverse-proxy this
-  # container — the admin app talks to it on the docker network only.
-  watchtower:
+  watchtower-sepolia:
     image: containrrr/watchtower:1.7.1
-    container_name: watchtower
+    container_name: watchtower-sepolia
     restart: unless-stopped
     networks:
       - web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      WATCHTOWER_SCOPE: sepolia
       WATCHTOWER_LABEL_ENABLE: "true"
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_TIMEOUT: 60s

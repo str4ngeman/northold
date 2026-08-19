@@ -46,7 +46,7 @@ export default function RegisterPage() {
       <FadeIn>
         <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-3)]">Account</p>
         <h1 className="mt-3 text-3xl font-semibold">Create your hold</h1>
-        <p className="mt-2 text-sm text-[var(--ink-2)]">Takes a minute. Yield starts after your first lock.</p>
+        <p className="mt-2 text-sm text-[var(--ink-2)]">Email and password. Connect MetaMask when you lock.</p>
         <Surface className="mt-6 p-6">
           <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
             <label className="field">

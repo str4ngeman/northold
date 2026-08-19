@@ -1,3 +1,9 @@
+# VPS: mainnet / production
+# docker compose -f .deploy/live.docker-compose.yml --env-file .env up -d
+#
+# 8080 is Watchtower's internal API. Do not publish it. Caddy should only
+# reverse-proxy northold:3000.
+
 services:
   northold:
     image: ghcr.io/str4ngeman/northold:latest
@@ -5,6 +11,7 @@ services:
     restart: unless-stopped
     labels:
       - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.scope=live
     networks:
       - web
     environment:
@@ -15,23 +22,22 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      BLOCKCHAIN_NETWORK: ${BLOCKCHAIN_NETWORK:-sepolia}
-      LAB_UI: ${LAB_UI:-1}
+      BLOCKCHAIN_NETWORK: ${BLOCKCHAIN_NETWORK:-mainnet}
+      LAB_UI: ${LAB_UI:-0}
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
-      WATCHTOWER_URL: http://watchtower:8080
+      WATCHTOWER_URL: http://watchtower-live:8080
       WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN}
 
-  # Pulls ghcr.io/...:latest and recreates northold. Do not reverse-proxy this
-  # container — the admin app talks to it on the docker network only.
-  watchtower:
+  watchtower-live:
     image: containrrr/watchtower:1.7.1
-    container_name: watchtower
+    container_name: watchtower-live
     restart: unless-stopped
     networks:
       - web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      WATCHTOWER_SCOPE: live
       WATCHTOWER_LABEL_ENABLE: "true"
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_TIMEOUT: 60s

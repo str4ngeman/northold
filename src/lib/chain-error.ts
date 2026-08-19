@@ -14,7 +14,7 @@ const REVERT: Record<string, string> = {
   NotCardOwner: "This wallet does not own that position card.",
   NotLocked: "This position is already closed.",
   InvalidBps: "Referral share must be 20% or less.",
-          InsufficientAvailable: "The coupon treasury for this token is short. Fund rewards from Lab, then try again.",
+          InsufficientAvailable: "The coupon treasury for this token is short. Fund rewards, then try again.",
 };
 
 export function decodeChainError(err: unknown): string {
@@ -27,7 +27,7 @@ export function decodeChainError(err: unknown): string {
     }
     const text = `${err.shortMessage} ${err.message}`;
     if (/fetch|econnrefused|timeout|failed to fetch/i.test(text)) {
-      return "Could not reach the RPC. Check the Sepolia URL in Admin → Settings.";
+      return "Could not reach the RPC. Check the RPC URL in Admin → Settings.";
     }
     if (/user rejected|denied/i.test(text)) return "Transaction rejected in MetaMask.";
     return err.shortMessage || err.message;

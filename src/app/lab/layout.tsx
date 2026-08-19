@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   Activity,
   ArrowLeft,
@@ -20,6 +21,7 @@ import { NetworkBadge } from "@/components/network-badge";
 import { StatusDot } from "@/components/lab/ui";
 import { WalletButton } from "@/components/wallet-button";
 import { useLabState } from "@/hooks/use-lab-state";
+import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -36,7 +38,19 @@ const LINKS = [
 
 export default function LabLayout({ children }: LayoutProps<"/lab">) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useSession();
   const { state } = useLabState(6000);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) router.replace("/login");
+    else if (user.role !== "admin") router.replace("/app");
+  }, [user, loading, router]);
+
+  if (loading || user?.role !== "admin") {
+    return <main className="grid min-h-dvh place-items-center text-sm text-[var(--ink-3)]">Checking admin access…</main>;
+  }
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">

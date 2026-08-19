@@ -20,6 +20,7 @@ import { Logo } from "@/components/brand/logo";
 import { NetworkBadge } from "@/components/network-badge";
 import { WalletButton } from "@/components/wallet-button";
 import { useSession } from "@/hooks/use-session";
+import { useLabUi } from "@/hooks/use-lab-ui";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -36,6 +37,7 @@ const LINKS = [
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   const { user, loading } = useSession();
+  const labUi = useLabUi();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -59,7 +61,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
         <div className="mb-4 px-3">
           <WalletButton />
         </div>
-        {LINKS.map((item) => (
+        {LINKS.filter((item) => item.href !== "/lab" || labUi).map((item) => (
           <Link
             key={item.href}
             href={item.href}

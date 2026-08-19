@@ -10,6 +10,7 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { formatApy, formatFee, formatLock, formatUsd } from "@/lib/format";
 import { DAY_SECONDS } from "@/lib/math";
 import { useOwnerTx } from "@/hooks/use-owner-tx";
+import { useLabUi } from "@/hooks/use-lab-ui";
 
 type PlanRow = {
   _id: string;
@@ -86,6 +87,7 @@ export default function AdminPlans() {
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [busy, setBusy] = useState(false);
   const ownerTx = useOwnerTx();
+  const labUi = useLabUi();
 
   async function load() {
     const res = await fetch("/api/admin/plans");
@@ -183,7 +185,9 @@ export default function AdminPlans() {
       description={
         vaultLive
           ? "Edits write to Mongo, then the connected MetaMask wallet signs the vault update. Cards already minted keep the coupon they locked in."
-          : "One row per bearing. Deploy from Lab to push these onto the hold."
+          : labUi
+            ? "One row per bearing. Deploy from Lab to push these onto the hold."
+            : "One row per bearing. Saving writes to the vault when it is live."
       }
       action={
         <CtaButton onClick={openCreate} className="h-11 px-5">

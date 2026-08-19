@@ -10,6 +10,7 @@ import { CtaButton } from "@/components/ui/cta-button";
 import { Surface } from "@/components/ui/surface";
 import { WalletButton } from "@/components/wallet-button";
 import { useOwnerTx } from "@/hooks/use-owner-tx";
+import { useLabUi } from "@/hooks/use-lab-ui";
 import { formatAddress } from "@/lib/format";
 import { explorerAddressUrl, NETWORKS, type NetworkId } from "@/lib/networks";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,7 @@ export default function AdminSettings() {
   const [release, setRelease] = useState<{ configured: boolean; image?: string } | null>(null);
   const [updating, setUpdating] = useState(false);
   const ownerTx = useOwnerTx();
+  const labUi = useLabUi();
 
   async function load() {
     const [settingsRes, networkRes, releaseRes] = await Promise.all([
@@ -235,7 +237,11 @@ export default function AdminSettings() {
     <AdminPage
       kicker="Settings"
       title="Site configuration"
-      description="The app runs on Sepolia. The connected MetaMask wallet is the deployer and is stored in the database. Lab deploy writes vault and token addresses here."
+      description={
+        labUi
+          ? "Sign in with email. Connect the deployer MetaMask wallet only when you need to sign a vault change. Lab deploy writes vault and token addresses here."
+          : "Sign in with email. Connect the deployer MetaMask wallet only when you need to sign a vault change."
+      }
       action={
         <CtaButton className="h-11 px-5" onClick={() => settings && setOpen(true)}>
           <Pencil className="size-4" /> Edit
@@ -262,6 +268,7 @@ export default function AdminSettings() {
         {release?.image ? <p className="mt-3 font-mono text-xs text-[var(--ink-3)]">{release.image}</p> : null}
       </Surface>
 
+      {labUi ? (
       <div className="mb-8 grid gap-3 lg:grid-cols-3">
         {ORDER.map((id) => {
           const summary = networks.find((item) => item.id === id);
@@ -291,6 +298,7 @@ export default function AdminSettings() {
           );
         })}
       </div>
+      ) : null}
 
       {network ? (
         <>
@@ -306,7 +314,7 @@ export default function AdminSettings() {
                     ? " — this is the saved owner"
                     : " — connecting as admin saves this address"
                 }`
-              : "Connect MetaMask as admin. That wallet becomes the protocol owner in the database."}
+              : "Connect the deployer MetaMask wallet to sign on-chain writes. Admin access is email and password."}
           </p>
           <div className="mt-4">
             <WalletButton />
@@ -361,7 +369,7 @@ export default function AdminSettings() {
             </p>
           ) : (
             <p className="mt-4 text-sm text-[var(--ink-3)]">
-              No vault on this network yet. Deploy from Lab, or paste addresses after a one-time token deploy.
+              No vault on this network yet. {labUi ? "Deploy from Lab, or paste addresses after a one-time token deploy." : "Paste protocol addresses below."}
             </p>
           )}
         </Surface>

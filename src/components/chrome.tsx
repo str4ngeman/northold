@@ -16,8 +16,10 @@ import type { ReactNode } from "react";
 import { Logo } from "@/components/brand/logo";
 import { ChatWidget } from "@/components/chat-widget";
 import { NetworkBadge } from "@/components/network-badge";
+import { CtaButton } from "@/components/ui/cta-button";
 import { WalletButton } from "@/components/wallet-button";
 import { useSession } from "@/hooks/use-session";
+import { useLabUi } from "@/hooks/use-lab-ui";
 import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +46,7 @@ export function RootChrome({ children }: { children: ReactNode }) {
 function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user } = useSession();
+  const labUi = useLabUi();
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
@@ -55,7 +58,9 @@ function AppShell({ children }: { children: ReactNode }) {
         {user?.role === "admin" && (
           <>
             <NavLink href="/admin" label="Admin" icon={Shield} active={pathname.startsWith("/admin")} />
-            <NavLink href="/lab" label="Lab" icon={FlaskConical} active={pathname.startsWith("/lab")} />
+            {labUi ? (
+              <NavLink href="/lab" label="Lab" icon={FlaskConical} active={pathname.startsWith("/lab")} />
+            ) : null}
           </>
         )}
         <p className="mt-auto px-3 pt-8 text-[11px] leading-relaxed text-[var(--ink-3)]">
@@ -73,7 +78,14 @@ function AppShell({ children }: { children: ReactNode }) {
             </p>
             <NetworkBadge />
           </div>
-          <WalletButton />
+          <div className="flex items-center gap-2">
+            {!user ? (
+              <CtaButton href="/login" variant="ghost" className="h-11 px-4">
+                Sign in
+              </CtaButton>
+            ) : null}
+            <WalletButton />
+          </div>
         </header>
         <main className="flex-1 px-4 pb-28 lg:px-8 lg:pb-12">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-white/6 bg-[#07090f]/90 px-2 py-2 backdrop-blur-xl lg:hidden">

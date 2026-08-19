@@ -9,6 +9,7 @@ import { AdminField, AdminPage, AdminTable, EmptyRow, StatusPill, Td, Th } from 
 import { TokenMark } from "@/components/brand/token-mark";
 import { CtaButton } from "@/components/ui/cta-button";
 import { useOwnerTx } from "@/hooks/use-owner-tx";
+import { useLabUi } from "@/hooks/use-lab-ui";
 import { formatAddress, formatUsd } from "@/lib/format";
 import type { Address } from "viem";
 
@@ -71,6 +72,7 @@ export default function AdminTokens() {
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [busy, setBusy] = useState(false);
   const ownerTx = useOwnerTx();
+  const labUi = useLabUi();
 
   async function load() {
     const res = await fetch("/api/admin/tokens");
@@ -166,7 +168,9 @@ export default function AdminTokens() {
       description={
         vaultLive
           ? `Addresses follow ${networkName}. Price and availability edits ask the connected MetaMask wallet to sign.`
-          : "Placeholder assets until you deploy. Switching Test/Live/Local never overwrites the other networks."
+          : labUi
+            ? "Placeholder assets until you deploy. Switching Test/Live never overwrites the other network."
+            : "Paste live token addresses. Each network keeps its own list."
       }
       action={
         <CtaButton onClick={openCreate} className="h-11 px-5">
@@ -206,9 +210,11 @@ export default function AdminTokens() {
                 <p className="font-mono text-xs">{formatAddress(token.address)}</p>
                 <p className="text-[11px] text-[var(--ink-3)]">
                   {token.network === "sepolia"
-                    ? "Sepolia"
+                    ? labUi
+                      ? "Sepolia"
+                      : "Test network"
                     : token.network === "mainnet"
-                      ? "Ethereum mainnet"
+                      ? "Ethereum"
                       : "Unbound"}
                 </p>
               </Td>
