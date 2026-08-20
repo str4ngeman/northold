@@ -250,7 +250,7 @@ export default function AdminSettings() {
     >
       <Surface className="mb-8 p-5">
         <p className="text-xs uppercase tracking-wider text-[var(--ink-3)]">Server</p>
-        <p className="mt-1 text-lg font-semibold">Pull latest image</p>
+        <p className="mt-1 text-lg font-semibold">Pull latest image test section</p>
         <p className="mt-1 text-sm text-[var(--ink-2)]">
           Same as SSH <span className="font-mono text-xs">docker compose pull && docker compose up -d --force-recreate</span>.
           New GHCR builds are also picked up automatically every five minutes.
