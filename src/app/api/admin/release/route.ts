@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import { NextResponse } from "next/server";
 
 import { json, requireAdmin } from "@/lib/api-guard";
@@ -6,6 +7,37 @@ function watchtowerConfig() {
   const url = process.env.WATCHTOWER_URL?.replace(/\/$/, "");
   const token = process.env.WATCHTOWER_TOKEN;
   return { url, token, configured: Boolean(url && token) };
+}
+
+function formatReachError(err: unknown): string {
+  const parts: string[] = [];
+  const walk = (value: unknown) => {
+    if (!(value instanceof Error)) return;
+    if (value.message && !parts.includes(value.message)) parts.push(value.message);
+    const code = (value as NodeJS.ErrnoException).code;
+    if (code && !parts.includes(code)) parts.push(code);
+    const cause = (value as Error & { cause?: unknown }).cause;
+    if (cause) walk(cause);
+    if ("errors" in value && Array.isArray((value as AggregateError).errors)) {
+      for (const nested of (value as AggregateError).errors) walk(nested);
+    }
+  };
+  walk(err);
+
+  const detail = parts.filter((p) => p !== "fetch failed").join(" · ") || "fetch failed";
+  return `Could not reach Watchtower (${detail}). Is the watchtower container running on the same Docker network as this app?`;
+}
+
+/** Resolve Docker DNS to IPv4 — Node 22/undici often fails on AAAA-first lookups. */
+async function watchtowerUpdateUrl(base: string): Promise<string> {
+  const target = new URL(`${base}/v1/update`);
+  try {
+    const { address } = await lookup(target.hostname, { family: 4 });
+    target.hostname = address;
+  } catch {
+    // Keep the hostname; fetch will surface the DNS error.
+  }
+  return target.toString();
 }
 
 export async function GET() {
@@ -31,12 +63,14 @@ export async function POST() {
   }
 
   try {
-    const res = await fetch(`${url}/v1/update`, {
-      method: "GET",
+    // nickfedor/watchtower requires POST; async so we return before this container is recreated.
+    const updateUrl = `${await watchtowerUpdateUrl(url)}?async=true`;
+    const res = await fetch(updateUrl, {
+      method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(20_000),
     });
-    if (!res.ok) {
+    if (!res.ok && res.status !== 202) {
       const body = await res.text().catch(() => "");
       return NextResponse.json(
         { error: body || `Watchtower returned ${res.status}` },
@@ -48,14 +82,6 @@ export async function POST() {
       message: "Pull started. The site will restart itself when the new image is ready.",
     });
   } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error
-            ? err.message
-            : "Could not reach Watchtower. Is the watchtower container running on the same Docker network?",
-      },
-      { status: 502 },
-    );
+    return NextResponse.json({ error: formatReachError(err) }, { status: 502 });
   }
 }

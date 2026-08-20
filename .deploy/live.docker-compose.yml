@@ -27,15 +27,19 @@ services:
       SEPOLIA_RPC_URL: ${SEPOLIA_RPC_URL:-}
       WATCHTOWER_URL: http://watchtower-live:8080
       WATCHTOWER_TOKEN: ${WATCHTOWER_TOKEN}
+    depends_on:
+      - watchtower-live
 
   watchtower-live:
-    image: containrrr/watchtower:1.7.1
+    # containrrr/watchtower is abandoned and crashes on Docker 29+ (API 1.40+)
+    image: nickfedor/watchtower:1.20.3
     container_name: watchtower-live
     restart: unless-stopped
     networks:
       - web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOME}/.docker/config.json:/config.json:ro
     environment:
       WATCHTOWER_SCOPE: live
       WATCHTOWER_LABEL_ENABLE: "true"
@@ -43,8 +47,11 @@ services:
       WATCHTOWER_TIMEOUT: 60s
       WATCHTOWER_POLL_INTERVAL: "300"
       WATCHTOWER_HTTP_API_UPDATE: "true"
+      WATCHTOWER_HTTP_API_ENDPOINTS: update
       WATCHTOWER_HTTP_API_PERIODIC_POLLS: "true"
       WATCHTOWER_HTTP_API_TOKEN: ${WATCHTOWER_TOKEN}
+      REPO_USER: ${GHCR_USER:-}
+      REPO_PASS: ${GHCR_TOKEN:-}
 
 networks:
   web:

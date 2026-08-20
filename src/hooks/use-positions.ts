@@ -5,7 +5,6 @@ import { formatUnits } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 
 import { useCatalog } from "@/hooks/use-catalog";
-import { useChainHead } from "@/hooks/use-chain-head";
 import { useSession } from "@/hooks/use-session";
 import { buildPositionView } from "@/lib/math";
 import { RARITY, STATUS, TIER, lensAbi, slugFromBytes32 } from "@/lib/protocol-abi";
@@ -42,8 +41,6 @@ export function usePositions(now: number) {
   const [positions, setPositions] = useState<PositionNft[]>([]);
   const protocol = catalog?.protocol;
   const owner = address ?? (user?.address as `0x${string}` | undefined);
-  const { blockNumber, timestampMs } = useChainHead(Boolean(protocol), protocol?.chainId);
-  const chainNow = timestampMs ?? now;
 
   const chainQuery = useReadContract({
     address: protocol?.lens,
@@ -51,9 +48,10 @@ export function usePositions(now: number) {
     functionName: "positionsOf",
     chainId: protocol?.chainId,
     args: owner ? [owner] : undefined,
-    blockNumber,
     query: {
       enabled: Boolean(protocol?.lens && owner),
+      refetchInterval: 20_000,
+      refetchOnWindowFocus: false,
     },
   });
 
@@ -73,7 +71,7 @@ export function usePositions(now: number) {
   }, [refreshMongo]);
 
   const refresh = useCallback(async () => {
-    await Promise.all([refreshMongo(), chainQuery.refetch?.() ?? Promise.resolve()]);
+    await Promise.all([refreshMongo(), chainQuery.refetch()]);
   }, [refreshMongo, chainQuery]);
 
   const views: PositionView[] = useMemo(() => {
@@ -101,20 +99,23 @@ export function usePositions(now: number) {
           status,
           unlockedAt: row.unlockedAt ? Number(row.unlockedAt) * 1000 : undefined,
         };
-        const view = buildPositionView(nft, token, plan, chainNow);
+        const view = buildPositionView(nft, token, plan, now);
         const accruedReward = Number(formatUnits(row.accruedReward, token.decimals));
         const claimableReward = Number(formatUnits(row.claimableReward, token.decimals));
+        // Prefer live accrual from wall clock once we have the row; lens claimable
+        // is a snapshot from the last refetch.
+        const liveClaimable = Math.max(claimableReward, view.claimableReward);
         return [
           {
             ...view,
-            accruedReward,
-            claimableReward,
-            accruedUsd: accruedReward * token.priceUsd,
-            claimableUsd: claimableReward * token.priceUsd,
+            accruedReward: Math.max(accruedReward, view.accruedReward),
+            claimableReward: liveClaimable,
+            accruedUsd: Math.max(accruedReward, view.accruedReward) * token.priceUsd,
+            claimableUsd: liveClaimable * token.priceUsd,
             unlockAt,
             lockProgress: Number(row.lockProgressBps) / 10_000,
-            remainingMs: Math.max(0, unlockAt - chainNow),
-            isMatured: row.matured,
+            remainingMs: Math.max(0, unlockAt - now),
+            isMatured: row.matured || now >= unlockAt,
             plan: { ...plan, apyBps: row.apyBps, emergencyFeeBps: row.emergencyFeeBps, lockSeconds: row.lockSeconds },
           },
         ];
@@ -126,7 +127,17 @@ export function usePositions(now: number) {
       if (!token || !plan) return [];
       return [buildPositionView(position, token, plan, now)];
     });
-  }, [catalog, protocol, chainQuery.data, positions, now, chainNow]);
+  }, [catalog, protocol, chainQuery.data, positions, now]);
 
-  return { positions, views, refresh, catalog, onChain: Boolean(protocol), loading: Boolean(protocol && owner && chainQuery.isLoading) };
+  const loading =
+    Boolean(protocol && owner) && chainQuery.isLoading && !chainQuery.data;
+
+  return {
+    positions,
+    views,
+    refresh,
+    catalog,
+    onChain: Boolean(protocol),
+    loading,
+  };
 }

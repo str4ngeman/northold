@@ -256,7 +256,10 @@ export default function AdminSettings() {
           New GHCR builds are also picked up automatically every five minutes.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <CtaButton disabled={updating || release?.configured === false} onClick={() => void pullRelease()}>
+          <CtaButton
+            disabled={updating || !release?.configured}
+            onClick={() => void pullRelease()}
+          >
             <RefreshCw className={`size-4 ${updating ? "animate-spin" : ""}`} />
             {updating ? "Updating…" : "Update from GHCR"}
           </CtaButton>

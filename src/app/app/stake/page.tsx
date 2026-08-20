@@ -14,7 +14,6 @@ import { DepthRule, Row, Wipe } from "@/components/kit";
 import { ConfettiBurst } from "@/components/motion";
 import { WalletButton } from "@/components/wallet-button";
 import { useCatalog } from "@/hooks/use-catalog";
-import { useChainHead } from "@/hooks/use-chain-head";
 import { useNow } from "@/hooks/use-now";
 import { useSession } from "@/hooks/use-session";
 import { useVaultTx } from "@/hooks/use-vault-tx";
@@ -56,7 +55,6 @@ function SinkForm() {
   const onChain = Boolean(catalog?.protocol);
   const canFaucet = Boolean(catalog?.network.capabilities.faucet);
   const networkName = catalog?.network.shortLabel ?? "the active chain";
-  const { blockNumber } = useChainHead(onChain, catalog?.protocol?.chainId);
   const tokens = (catalog?.tokens ?? []).filter((item) => item.active !== false);
   const plans = (catalog?.plans ?? []).filter((item) => item.active !== false);
   const token = tokens.find((item) => item.id === (assetId ?? tokens[0]?.id));
@@ -74,8 +72,11 @@ function SinkForm() {
     functionName: "balanceOf",
     chainId: catalog?.protocol?.chainId,
     args: wallet ? [wallet] : undefined,
-    blockNumber,
-    query: { enabled: Boolean(onChain && token?.address && wallet) },
+    query: {
+      enabled: Boolean(onChain && token?.address && wallet),
+      refetchInterval: 20_000,
+      refetchOnWindowFocus: false,
+    },
   });
   const balance = token && typeof rawBal === "bigint" ? Number(formatUnits(rawBal, token.decimals)) : null;
 

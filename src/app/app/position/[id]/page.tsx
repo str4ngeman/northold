@@ -22,7 +22,7 @@ import { gradeLabel, seamOf } from "@/lib/seams";
 export default function ShaftPage() {
   const params = useParams<{ id: string }>();
   const tokenId = Number(params.id);
-  const now = useNow();
+  const now = useNow(1000);
   const { views, refresh, catalog, loading } = usePositions(now);
   const { claim, unlock, emergencyExit, transferCard } = useVaultTx();
   const { run: warp, running: warping } = useLabExec();
@@ -32,7 +32,10 @@ export default function ShaftPage() {
   const [transferTo, setTransferTo] = useState("");
   const [busy, setBusy] = useState(false);
 
-  if (loading) return <div className="panel h-64 animate-pulse bg-[var(--slate)]" />;
+  // Keep the page mounted once we have a view — refetch must not flash a skeleton.
+  if (loading && !view) {
+    return <div className="panel h-64 animate-pulse bg-[var(--slate)]" />;
+  }
 
   if (!Number.isFinite(tokenId) || !view) {
     return (
