@@ -1,6 +1,7 @@
 import { PLANS } from "@/lib/dummy";
 import { seamOf } from "@/lib/seams";
 import { elevation, FIELD, metresAt } from "@/lib/field/terrain";
+import type { CategoryId } from "@/lib/field/types";
 import type { Plan } from "@/lib/types";
 
 export type DistrictId = "verglas" | "cinder" | "grieve" | "marrow" | "halcyon" | "ochre";
@@ -11,6 +12,8 @@ export type District = {
   name: string;
   /** Plan slug this ground is booked against. */
   planId: string;
+  /** Yield category this district is surveyed against. */
+  category: CategoryId;
   x: number;
   y: number;
   /** Pull radius — bigger districts win ground further out. */
@@ -30,6 +33,7 @@ export const DISTRICTS: District[] = [
     code: "VG",
     name: "Verglas Shelf",
     planId: "apex",
+    category: "staking",
     x: 545,
     y: 205,
     reach: 1.0,
@@ -41,6 +45,7 @@ export const DISTRICTS: District[] = [
     code: "CR",
     name: "Cinder Reach",
     planId: "apex",
+    category: "rwa",
     x: 1215,
     y: 295,
     reach: 0.98,
@@ -52,6 +57,7 @@ export const DISTRICTS: District[] = [
     code: "GV",
     name: "The Grieve",
     planId: "horizon",
+    category: "fixed",
     x: 820,
     y: 505,
     reach: 1.05,
@@ -63,6 +69,7 @@ export const DISTRICTS: District[] = [
     code: "MW",
     name: "Marrow Basin",
     planId: "horizon",
+    category: "vaults",
     x: 1175,
     y: 705,
     reach: 0.96,
@@ -74,6 +81,7 @@ export const DISTRICTS: District[] = [
     code: "HD",
     name: "Halcyon Delta",
     planId: "pulse",
+    category: "lending",
     x: 335,
     y: 630,
     reach: 1.14,
@@ -85,6 +93,7 @@ export const DISTRICTS: District[] = [
     code: "OF",
     name: "Ochre Flats",
     planId: "pulse",
+    category: "dex",
     x: 700,
     y: 800,
     reach: 1.13,

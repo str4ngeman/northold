@@ -15,9 +15,6 @@ export async function POST(request: Request) {
     return labJson({ error: `Unknown command: ${cmd}` }, 400);
   }
   const extra = Array.isArray(body.args) ? body.args.map(String).filter(Boolean) : [];
-  if (cmd === "monitor" && extra.includes("--follow")) {
-    return labJson({ error: "Use the monitor page instead of --follow" }, 400);
-  }
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -32,16 +29,6 @@ export async function POST(request: Request) {
         const childEnv: Record<string, string | undefined> = {
           RPC_URL: runtime.rpcUrl,
         };
-
-        if (cmd === "deploy") {
-          send({
-            t: "log",
-            line: "Use Lab → Deploy. The server does not hold a deployer key.",
-          });
-          send({ t: "done", code: 1 });
-          controller.close();
-          return;
-        }
 
         const child = streamLeague([cmd, ...extra], (line) => send({ t: "log", line }), childEnv);
         child.on("error", (err) => {
